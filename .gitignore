@@ -48,3 +48,7 @@ Thumbs.db
 # Project specific
 backend/services/
 
+# Documentation (except README)
+*.md
+!README.md
+

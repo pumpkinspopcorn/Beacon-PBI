@@ -1,5 +1,5 @@
-agno
-streamlit
+google-adk
+litellm
 openai
 groq
 azure-search-documents
@@ -7,3 +7,5 @@ azure-identity
 python-dotenv
 requests
 duckduckgo-search
+langchain
+langchain-community
