@@ -73,6 +73,7 @@ async def main_async():
     print("\nPowered by Google ADK with:")
     print("  • InternetAgent - Real-time web search (DuckDuckGo)")
     print("  • RAGAgent - Internal knowledge base (Azure AI Search)")
+    print("  • CommunityAgent - Web scraping & extraction (Firecrawl)")
     print("  • Orchestrator - Intelligent query routing")
     print("\nType 'exit' or 'quit' to stop.")
     print("-" * 60)

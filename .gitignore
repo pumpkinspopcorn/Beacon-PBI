@@ -52,3 +52,19 @@ backend/services/
 *.md
 !README.md
 
+# Local data files (keep locally, don't commit)
+azure_data/qa_documents/
+scraped_data/
+azure_data/*.json
+azure_data/*.jsonl
+
+# Utility scripts (optional - uncomment if you don't want to commit these)
+# format_qa_for_azure.py
+# upload_to_azure_blob.py
+# scrape_real_powerbi_qa.py
+
+# Frontend build and dependencies
+frontend/dist/
+frontend/node_modules/
+frontend/bun.lockb
+

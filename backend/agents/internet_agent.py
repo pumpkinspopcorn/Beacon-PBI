@@ -56,7 +56,7 @@ def search_web(query: str) -> str:
 # Create the Internet Agent using Google ADK's LlmAgent
 internet_agent = LlmAgent(
     name="InternetAgent",
-    model=get_model(),
+    model=get_model(max_tokens=2048),
     description="Searches the web for real-time information and current events using DuckDuckGo.",
     instruction="""
     You are an expert web researcher specializing in finding real-time information.
