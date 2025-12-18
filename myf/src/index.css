@@ -1,0 +1,254 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tetra Pak Brand Design System - All colors in HSL */
+
+@layer base {
+  :root {
+    /* Brand tokens (kept for accent usage) */
+    --tetra-navy: 220 100% 27%;
+    --tetra-blue: 207 86% 37%;
+    --tetra-light-blue: 206 100% 95%;
+    --tetra-coral: 0 70% 55%;
+
+    /* Fallback Light Theme Palette - deeper white background for contrast */
+    --background: 220 14% 97%; /* softer light gray */
+    --foreground: 222 32% 11%; /* #111827 */
+
+    --card: 0 0% 100%; /* keep cards white for contrast */
+    --card-foreground: 222 32% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 32% 11%;
+
+    --primary: 209 86% 37%; /* #0B63B8 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 9% 46%; /* #6B7280 */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 20% 95%; /* subtle surfaces */
+    --muted-foreground: 220 10% 35%;
+
+    --accent: 209 80% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 72% 30%; /* #15803D */
+    --success-foreground: 0 0% 100%;
+
+    --border: 220 20% 88%; /* slightly stronger border */
+    --input: 220 20% 90%;
+    --ring: 209 86% 37%;
+
+    --radius: 0.875rem;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 32% 11%;
+    --sidebar-primary: 209 86% 37%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 93%;
+    --sidebar-accent-foreground: 222 32% 11%;
+    --sidebar-border: 220 20% 90%;
+    --sidebar-ring: 209 86% 37%;
+
+    /* Chat Specific (light) */
+    --chat-user-bg: 206 100% 95%; /* #EAF5FF */
+    --chat-user-fg: 209 91% 16%; /* #04264A */
+    --chat-bot-bg: 220 14% 95%; /* #F3F4F6 */
+    --chat-bot-fg: 222 32% 11%; /* #0F1724 */
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(209 86% 37%) 0%, hsl(207 70% 45%) 100%);
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 20% 95%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(222 32% 11% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(222 32% 11% / 0.1), 0 2px 4px -2px hsl(222 32% 11% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(222 32% 11% / 0.1), 0 4px 6px -4px hsl(222 32% 11% / 0.1);
+    --shadow-glow: 0 0 20px hsl(209 86% 37% / 0.15);
+  }
+
+  .dark {
+    /* Fallback Dark Theme Palette */
+    --background: 220 40% 7%; /* #0B1220 */
+    --foreground: 213 36% 95%; /* #E6EEF8 */
+
+    --card: 220 34% 13%; /* #0F1724 */
+    --card-foreground: 213 36% 95%;
+
+    --popover: 220 34% 13%;
+    --popover-foreground: 213 36% 95%;
+
+    --primary: 205 100% 58%; /* #2DA0FF */
+    --primary-foreground: 220 40% 7%;
+
+    --secondary: 213 26% 68%; /* #94A3B8 */
+    --secondary-foreground: 220 40% 7%;
+
+    --muted: 220 30% 18%;
+    --muted-foreground: 213 26% 68%;
+
+    --accent: 205 88% 55%; /* hover */
+    --accent-foreground: 220 40% 7%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 220 29% 20%; /* #1F2937 */
+    --input: 220 29% 20%;
+    --ring: 205 100% 58%;
+
+    --sidebar-background: 220 34% 13%;
+    --sidebar-foreground: 213 36% 95%;
+    --sidebar-primary: 205 100% 58%;
+    --sidebar-primary-foreground: 220 40% 7%;
+    --sidebar-accent: 220 30% 18%;
+    --sidebar-accent-foreground: 213 36% 95%;
+    --sidebar-border: 220 29% 20%;
+    --sidebar-ring: 205 100% 58%;
+
+    /* Chat Specific (dark) */
+    --chat-user-bg: 210 63% 18%; /* #11324D */
+    --chat-user-fg: 205 100% 90%; /* #CDE9FF */
+    --chat-bot-bg: 217 49% 12%; /* #0F1A2B */
+    --chat-bot-fg: 213 36% 95%; /* #E6EEF8 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-muted/50 rounded-full;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50;
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-surface {
+    background: var(--gradient-surface);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Prevent debug panel overlap: add right padding to chat while open */
+  .debug-open .chat-container {
+    padding-right: 26rem; /* matches panel width (w-96) + spacing */
+    max-width: calc(100vw - 26rem);
+  }
+  @media (max-width: 1024px) {
+    .debug-open .chat-container {
+      padding-right: 0; /* avoid pushing on smaller screens */
+      max-width: 100%;
+    }
+  }
+
+  /* Ensure chat content doesn’t spill when width shrinks */
+  .chat-container {
+    min-width: 0;
+    max-width: 100%;
+    padding-right: 3.5rem; /* reserve space for floating debug icon */
+  }
+
+  .chat-container .grid > * {
+    min-width: 0;
+  }
+
+  .chat-container .card,
+  .chat-container [class*="rounded-lg"],
+  .chat-container [class*="rounded-md"] {
+    overflow: hidden;
+  }
+
+  .chat-container .card *,
+  .chat-container [class*="rounded-lg"] *,
+  .chat-container [class*="rounded-md"] * {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+/* Markdown Table Styling */
+.markdown-content table {
+  @apply w-full border-collapse my-4 text-sm rounded-lg overflow-hidden;
+}
+
+.markdown-content table th {
+  @apply bg-primary text-primary-foreground px-4 py-3 text-left font-semibold;
+}
+
+.markdown-content table td {
+  @apply border-b border-border px-4 py-3 bg-card;
+}
+
+.markdown-content table tr:hover td {
+  @apply bg-muted/50;
+}
+
+.markdown-content code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-destructive;
+}
+
+.markdown-content pre {
+  @apply bg-muted p-4 rounded-lg overflow-x-auto my-4;
+}
+
+.markdown-content pre code {
+  @apply bg-transparent p-0 text-foreground;
+}
+
+.markdown-content blockquote {
+  @apply border-l-4 border-primary pl-4 py-2 my-4 bg-muted/50 rounded-r-lg italic text-muted-foreground;
+}
+
+.markdown-content ul, .markdown-content ol {
+  @apply my-3 ml-6;
+}
+
+.markdown-content li {
+  @apply my-1.5 leading-relaxed;
+}
+
+.markdown-content p {
+  @apply my-3 leading-relaxed;
+}
+
+.markdown-content h1, .markdown-content h2, .markdown-content h3, .markdown-content h4 {
+  @apply font-semibold text-foreground mt-6 mb-3;
+}
+
+.markdown-content a {
+  @apply text-secondary underline hover:text-primary transition-colors;
+}
