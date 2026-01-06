@@ -1,0 +1,14 @@
+google-adk
+litellm
+python-dotenv
+fastapi
+uvicorn
+httpx
+langchain
+langchain-core
+langchain-community
+langchain-openai
+azure-search-documents
+azure-identity
+azure-storage-blob
+duckduckgo-search
