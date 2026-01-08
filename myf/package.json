@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "deploy:prod": "node -e \"console.log('Preparing artifacts for Databricks deployment')\""
+    "deploy:prod": "node -e \"console.log('Preparing artifacts for Databricks deployment')\"",
+    "deploy:databricks": "powershell -ExecutionPolicy Bypass -File ./deploy/databricks-deploy.ps1 -Host $env:DATABRICKS_HOST -Token $env:DATABRICKS_TOKEN -WorkspacePath /Workspace/Users/$env:USERNAME/apps/Beacon-PBI/myf -AppName Beacon-PBI-myf"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
