@@ -61,6 +61,10 @@ export function useChat() {
         status: 'complete',
       };
       setMessages((prev) => [...prev, assistantMessage]);
+      
+      // Invalidate observability queries to refresh real-time data
+      queryClient.invalidateQueries({ queryKey: ["observability-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-requests"] });
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to get response");
@@ -86,6 +90,10 @@ The Flask backend should be running on port 8000 with these endpoints:
         status: 'complete',
       };
       setMessages((prev) => [...prev, errorMessage]);
+      
+      // Invalidate observability queries to refresh real-time data after failed request
+      queryClient.invalidateQueries({ queryKey: ["observability-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-requests"] });
     },
     onSettled: () => {
       setIsTyping(false);

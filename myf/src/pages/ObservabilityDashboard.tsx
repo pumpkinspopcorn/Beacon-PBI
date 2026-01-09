@@ -295,7 +295,7 @@ function ObservabilityDashboard() {
                             </Badge>
                           </div>
                           <p className="text-xs font-mono bg-muted p-2 rounded">
-                            gargi-mk2bzl3b-eastus2.services.ai.azure.com
+                            mk2bzl3b-eastus2.services.ai.azure.com
                           </p>
                         </div>
                         <div className="space-y-2">

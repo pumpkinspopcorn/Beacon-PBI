@@ -38,45 +38,79 @@ export interface AskQuestionResponse {
  * Sends a question to the backend agent.
  */
 export async function askQuestion(question: string): Promise<AskQuestionResponse> {
-  const response = await fetch(`${API_BASE_URL}/ask`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ 
-      question: question,
-      user_id: "web_user",
-      session_id: "web_session_001"
-    }),
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/ask`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ 
+        question: question,
+        user_id: "web_user",
+        session_id: "web_session_001"
+      }),
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      // Record the failed request for observability
+      recordChatRequest(question, undefined, false);
+      
+      throw new Error(errorData.detail || "Failed to get response from agent");
+    }
+
+    const data = await response.json();
+    
+    // DEBUG: Log the raw API response
+    console.log('[API] Raw response from backend:', JSON.stringify(data, null, 2));
+    console.log('[API] Sources in response:', data.sources);
+    if (data.sources && data.sources.length > 0) {
+      data.sources.forEach((source: any, i: number) => {
+        console.log(`[API] Source ${i} FULL OBJECT:`, JSON.stringify(source, null, 2));
+        console.log(`[API] Source ${i} keys:`, Object.keys(source));
+        console.log(`[API] Source ${i} chunks:`, source.chunks);
+        console.log(`[API] Source ${i} chunk_data:`, source.chunk_data);
+      });
+    }
+
+    // Check if the response indicates an error (even with 200 status)
+    const isErrorResponse = !data.answer || 
+                           data.answer.includes("unable to connect to the backend") ||
+                           data.answer.includes("I apologize, but I'm currently unable") ||
+                           data.error ||
+                           (data.sources && data.sources.length === 0 && !data.answer);
+
+    console.log('[API] Error response check:', {
+      hasAnswer: !!data.answer,
+      answerContainsError: data.answer?.includes("unable to connect to the backend"),
+      hasError: !!data.error,
+      isErrorResponse
+    });
+
+    if (isErrorResponse) {
+      console.log('[API] Recording as FAILED request due to error response');
+      // Record the failed request for observability
+      recordChatRequest(question, data.answer || "Backend error", false);
+      throw new Error(data.error || "Backend returned an error response");
+    }
+
+    console.log('[API] Recording as SUCCESSFUL request');
+    // Record the successful request for observability
+    recordChatRequest(question, data.answer, true);
+
+    return data;
+  } catch (error) {
+    // Handle network errors (backend not available)
+    console.error('Network error or backend unavailable:', error);
+    console.log('[API] Recording as FAILED request due to network error');
     
     // Record the failed request for observability
     recordChatRequest(question, undefined, false);
     
-    throw new Error(errorData.detail || "Failed to get response from agent");
+    // Re-throw the error so it can be handled by the caller
+    throw error;
   }
-
-  const data = await response.json();
-  
-  // DEBUG: Log the raw API response
-  console.log('[API] Raw response from backend:', JSON.stringify(data, null, 2));
-  console.log('[API] Sources in response:', data.sources);
-  if (data.sources && data.sources.length > 0) {
-    data.sources.forEach((source: any, i: number) => {
-      console.log(`[API] Source ${i} FULL OBJECT:`, JSON.stringify(source, null, 2));
-      console.log(`[API] Source ${i} keys:`, Object.keys(source));
-      console.log(`[API] Source ${i} chunks:`, source.chunks);
-      console.log(`[API] Source ${i} chunk_data:`, source.chunk_data);
-    });
-  }
-
-  // Record the successful request for observability
-  recordChatRequest(question, data.answer, true);
-
-  return data;
 }
 
 /**
