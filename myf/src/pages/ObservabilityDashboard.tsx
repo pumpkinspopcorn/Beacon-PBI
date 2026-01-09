@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { getObservabilityStats, getRecentRequests, resetObservabilityStats } from "@/lib/api";
 import { ObservabilityStats } from "@/types/chat";
-import { Activity, DollarSign, Clock, RefreshCw, AlertCircle, CheckCircle2, Zap } from "lucide-react";
+import { Activity, DollarSign, Clock, RefreshCw, AlertCircle, CheckCircle2, Zap, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -65,28 +65,7 @@ function ObservabilityDashboard() {
     navigate('/');
   };
 
-  if (isLoading && !stats) {
-    return (
-      <SidebarProvider defaultOpen={false}>
-        <div className="min-h-screen flex w-full bg-background">
-          <AppSidebar onNewChat={handleNewChat} />
-          <SidebarInset className="flex flex-col flex-1 overflow-hidden">
-            <Header 
-              title="PBI Beacon"
-              subtitle="Observability Hub"
-              showChatActions={false}
-            />
-            <main className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <Activity className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">Loading observability data...</p>
-              </div>
-            </main>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    );
-  }
+  // Removed full-screen loading state to always render the dashboard
 
   const summary = stats?.summary || {
     total_requests: 0,
@@ -100,16 +79,21 @@ function ObservabilityDashboard() {
     average_latency_ms: 0,
   };
 
+  const totalTokensSafe = Math.max(summary.total_tokens, 1);
+  const inputCost = summary.total_cost_usd * (summary.total_tokens_input / totalTokensSafe);
+  const outputCost = summary.total_cost_usd * (summary.total_tokens_output / totalTokensSafe);
+
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full bg-gradient-to-b from-background via-muted/20 to-background">
         <AppSidebar onNewChat={handleNewChat} />
         
         <SidebarInset className="flex flex-col flex-1 overflow-hidden">
           <Header 
             title="PBI Beacon"
             subtitle="Observability Hub"
-            showChatActions={false}
+            showChatActions={true}
+            onNewChat={handleNewChat}
           />
           
           <main className="flex-1 flex flex-col overflow-hidden">
@@ -125,14 +109,6 @@ function ObservabilityDashboard() {
                     </p>
                   </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setAutoRefresh(!autoRefresh)}
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? "animate-spin" : ""}`} />
-                    {autoRefresh ? "Auto-refresh ON" : "Auto-refresh OFF"}
-                  </Button>
                   <Button variant="outline" size="sm" onClick={() => refetch()}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
@@ -144,7 +120,7 @@ function ObservabilityDashboard() {
               </div>
 
               {/* Summary Cards */}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
@@ -158,7 +134,34 @@ function ObservabilityDashboard() {
                   </CardContent>
                 </Card>
 
+
                 <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Input Tokens</CardTitle>
+                    <ArrowDownCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatNumber(summary.total_tokens_input)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Avg: {formatNumber(Math.round(summary.total_tokens_input / Math.max(summary.total_requests, 1)))} per request
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Output Tokens</CardTitle>
+                    <ArrowUpCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatNumber(summary.total_tokens_output)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Avg: {formatNumber(Math.round(summary.total_tokens_output / Math.max(summary.total_requests, 1)))} per request
+                    </p>
+                  </CardContent>
+                </Card>
+
+                                <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Tokens</CardTitle>
                     <Zap className="h-4 w-4 text-muted-foreground" />
@@ -171,19 +174,7 @@ function ObservabilityDashboard() {
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(summary.total_cost_usd)}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Average: {formatCurrency(summary.total_cost_usd / Math.max(summary.total_requests, 1))} per request
-                    </p>
-                  </CardContent>
-                </Card>
-
+                
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Avg Latency</CardTitle>
@@ -193,6 +184,45 @@ function ObservabilityDashboard() {
                     <div className="text-2xl font-bold">{formatTime(summary.average_latency_ms)}</div>
                     <p className="text-xs text-muted-foreground">
                       Success rate: {summary.success_rate.toFixed(1)}%
+                    </p>
+                  </CardContent>
+                </Card>
+              
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Input Cost</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(inputCost)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Avg: {formatCurrency(inputCost / Math.max(summary.total_requests, 1))} per request
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Output Cost</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(outputCost)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Avg: {formatCurrency(outputCost / Math.max(summary.total_requests, 1))} per request
+                    </p>
+                  </CardContent>
+                </Card>
+
+                  <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(summary.total_cost_usd)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Average: {formatCurrency(summary.total_cost_usd / Math.max(summary.total_requests, 1))} per request
                     </p>
                   </CardContent>
                 </Card>

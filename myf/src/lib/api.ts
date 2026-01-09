@@ -1,6 +1,4 @@
-/**
- * API client for communicating with the backend FastAPI server.
- */
+import { loadObservabilityStats, loadRecentRequests, recordChatRequest, resetLocalObservabilityStats } from "./observabilityTracker";
 
 const API_BASE_URL = "/api";
 
@@ -54,6 +52,10 @@ export async function askQuestion(question: string): Promise<AskQuestionResponse
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    
+    // Record the failed request for observability
+    recordChatRequest(question, undefined, false);
+    
     throw new Error(errorData.detail || "Failed to get response from agent");
   }
 
@@ -70,7 +72,10 @@ export async function askQuestion(question: string): Promise<AskQuestionResponse
       console.log(`[API] Source ${i} chunk_data:`, source.chunk_data);
     });
   }
-  
+
+  // Record the successful request for observability
+  recordChatRequest(question, data.answer, true);
+
   return data;
 }
 
@@ -85,20 +90,34 @@ export async function getHealth() {
 
 /**
  * Get observability statistics.
+ * Falls back to local storage if backend is unavailable.
  */
 export async function getObservabilityStats() {
-  const response = await fetch(`${API_BASE_URL}/observability/stats`);
-  if (!response.ok) throw new Error("Failed to fetch observability stats");
-  return response.json();
+  try {
+    const response = await fetch(`${API_BASE_URL}/observability/stats`);
+    if (!response.ok) throw new Error("Backend observability not available");
+    return response.json();
+  } catch (error) {
+    console.warn("Backend observability not available, using local data:", error);
+    // Fall back to local storage data
+    return loadObservabilityStats();
+  }
 }
 
 /**
  * Get recent requests.
+ * Falls back to local storage if backend is unavailable.
  */
 export async function getRecentRequests(limit: number = 50) {
-  const response = await fetch(`${API_BASE_URL}/observability/recent?limit=${limit}`);
-  if (!response.ok) throw new Error("Failed to fetch recent requests");
-  return response.json();
+  try {
+    const response = await fetch(`${API_BASE_URL}/observability/recent?limit=${limit}`);
+    if (!response.ok) throw new Error("Backend recent requests not available");
+    return response.json();
+  } catch (error) {
+    console.warn("Backend recent requests not available, using local data:", error);
+    // Fall back to local storage data
+    return loadRecentRequests(limit);
+  }
 }
 
 /**
@@ -111,11 +130,20 @@ export async function clearHistory() {
 
 /**
  * Reset observability statistics.
+ * Resets both backend and local data.
  */
 export async function resetObservabilityStats() {
-  const response = await fetch(`${API_BASE_URL}/observability/reset`, {
-    method: "POST",
-  });
-  if (!response.ok) throw new Error("Failed to reset stats");
-  return response.json();
+  try {
+    const response = await fetch(`${API_BASE_URL}/observability/reset`, {
+      method: "POST",
+    });
+    if (!response.ok) throw new Error("Failed to reset backend stats");
+  } catch (error) {
+    console.warn("Backend reset failed, resetting local data only:", error);
+  }
+  
+  // Always reset local data
+  resetLocalObservabilityStats();
+  
+  return { success: true };
 }

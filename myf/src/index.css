@@ -9,7 +9,7 @@
     /* Brand tokens (kept for accent usage) */
     --tetra-navy: 220 100% 27%;
     --tetra-blue: 207 86% 37%;
-    --tetra-light-blue: 206 100% 95%;
+      --tetra-light-blue: 206 100% 94%; /* more visible light Tetra blue */
     --tetra-coral: 0 70% 55%;
 
     /* Fallback Light Theme Palette - deeper white background for contrast */
@@ -47,11 +47,12 @@
     --radius: 0.875rem;
 
     /* Sidebar */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 32% 11%;
+      --sidebar-background: var(--tetra-blue); /* deep Tetra blue like wordmark */
+      --sidebar-foreground: 0 0% 100%; /* white text over blue */
     --sidebar-primary: 209 86% 37%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 20% 93%;
+    /* Use Tetra light blue for sidebar hover/active surfaces */
+    --sidebar-accent: var(--tetra-light-blue);
     --sidebar-accent-foreground: 222 32% 11%;
     --sidebar-border: 220 20% 90%;
     --sidebar-ring: 209 86% 37%;
@@ -161,6 +162,14 @@
 
   .shadow-glow {
     box-shadow: var(--shadow-glow);
+  }
+
+  /* Subtle dotted pattern for sidebar content */
+  .sidebar-pattern {
+    background-image:
+      radial-gradient(hsl(var(--tetra-light-blue) / 0.35) 1px, transparent 1px);
+    background-size: 18px 18px;
+    background-position: 0 0;
   }
 
   /* Prevent debug panel overlap: add right padding to chat while open */
