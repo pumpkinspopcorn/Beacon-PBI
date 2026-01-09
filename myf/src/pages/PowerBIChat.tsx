@@ -158,12 +158,14 @@ export default function PowerBIChatPage() {
       const referencedSources = (response.sources || []).map((source, index) => {
         console.log(`[PowerBIChat] Processing source ${index}:`, source);
         
-        const sourceType = source.type === 'web' ? 'web' : 'file';
+        const sourceType = source.type === 'Internal Document' ? 'doc' : 
+                          source.type === 'web' ? 'web' : 'file';
         const referencedSource: any = {
           id: `source-${Date.now()}-${index}`,
           type: sourceType,
           name: source.name || source.filename || source.path || 'Unknown source',
           path: source.path || '',
+          clickable: source.clickable || false,
           metadata: {
             type: source.type || 'web',
             is_table: source.is_table || false,
@@ -186,6 +188,7 @@ export default function PowerBIChatPage() {
           console.log(`[PowerBIChat] Source "${source.name}" has NO chunk_data property`);
         }
 
+        console.log(`[PowerBIChat] Final referencedSource:`, referencedSource);
         return referencedSource;
       });
 

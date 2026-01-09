@@ -180,9 +180,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           {/* Referenced Sources */}
           {message.sources && message.sources.length > 0 && (
-            <ReferencedSourcesPanel 
-              sources={message.sources} 
-            />
+            <>
+              {console.log('[MessageBubble] Passing sources to ReferencedSourcesPanel:', message.sources)}
+              <ReferencedSourcesPanel 
+                sources={message.sources} 
+              />
+            </>
           )}
 
           {/* Metadata footer for assistant messages */}

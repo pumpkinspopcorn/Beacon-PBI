@@ -33,6 +33,14 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
   sources,
   defaultExpanded = true, // Changed to true so sources are visible by default
 }) => {
+  console.log('[ReferencedSourcesPanel] Received sources:', sources);
+  console.log('[ReferencedSourcesPanel] First source full object:', sources[0]);
+  if (sources[0]) {
+    console.log('[ReferencedSourcesPanel] First source keys:', Object.keys(sources[0]));
+    console.log('[ReferencedSourcesPanel] First source chunks:', sources[0].chunks);
+    console.log('[ReferencedSourcesPanel] First source chunk_data:', sources[0].chunk_data);
+  }
+  
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [viewingDocument, setViewingDocument] = useState<{ 
     url: string; 
@@ -48,16 +56,24 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
    * Requirements: 2.1 - Map source.chunks to PDFViewerWithHighlight props
    */
   const getChunksFromSource = (source: ReferencedSource): ChunkData[] => {
+    console.log('[getChunksFromSource] Input source:', source);
+    console.log('[getChunksFromSource] source.chunks:', source.chunks);
+    console.log('[getChunksFromSource] source.chunk_data:', source.chunk_data);
+    console.log('[getChunksFromSource] All source keys:', Object.keys(source));
+    
     // Prefer new chunks array if available
     if (source.chunks && Array.isArray(source.chunks) && source.chunks.length > 0) {
+      console.log('[getChunksFromSource] Returning chunks array:', source.chunks);
       return source.chunks;
     }
     
     // Fall back to legacy chunk_data format for backward compatibility
     if (source.chunk_data) {
+      console.log('[getChunksFromSource] Returning chunk_data as array:', [source.chunk_data]);
       return [source.chunk_data];
     }
     
+    console.log('[getChunksFromSource] No chunks found, returning empty array');
     return [];
   };
 
@@ -116,10 +132,14 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
     const chunks = getChunksFromSource(source);
     console.log(`[ReferencedSourcesPanel] Clicking source "${source.name}" with ${chunks.length} chunks:`, chunks);
     
+    // Debug: Log the full source object to understand the structure
+    console.log(`[ReferencedSourcesPanel] Full source object:`, source);
+    
     // If source has a path/URL
     if (source.path) {
       // Check if it's a document (PDF, DOC, etc.) - open in viewer
       if (isDocumentUrl(source.path)) {
+        console.log(`[ReferencedSourcesPanel] Opening PDF viewer with chunks:`, chunks);
         setViewingDocument({ 
           url: source.path, 
           name: source.name,
@@ -275,8 +295,8 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
 
       {/* Document Viewer Dialog */}
       <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
-        <DialogContent className="max-w-6xl max-h-[90vh] w-full p-0">
-          <DialogHeader className="px-6 py-4 border-b">
+        <DialogContent className="max-w-6xl h-[90vh] w-full p-0 flex flex-col">
+          <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5" />
@@ -294,7 +314,7 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
           </DialogHeader>
           <div className="flex-1 overflow-hidden bg-slate-50">
             {viewingDocument && (
-              <div className="w-full h-[calc(90vh-80px)]">
+              <div className="w-full h-full">
                 {viewingDocument.url.toLowerCase().endsWith('.pdf') ? (
                   <PDFViewerWithHighlight
                     url={viewingDocument.url}
