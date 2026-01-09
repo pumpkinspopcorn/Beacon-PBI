@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { ReferencedSource } from '@/types/powerbi-chat';
+import { ReferencedSource, ChunkData } from '@/types/powerbi-chat';
 import { PDFViewerWithHighlight } from './PDFViewerWithHighlight';
 
 interface ReferencedSourcesPanelProps {
@@ -37,10 +37,29 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
   const [viewingDocument, setViewingDocument] = useState<{ 
     url: string; 
     name: string;
-    chunk_data?: any;
+    chunks: ChunkData[];
   } | null>(null);
 
   if (!sources || sources.length === 0) return null;
+
+  /**
+   * Normalize chunks from a source, handling backward compatibility
+   * with the old chunk_data format.
+   * Requirements: 2.1 - Map source.chunks to PDFViewerWithHighlight props
+   */
+  const getChunksFromSource = (source: ReferencedSource): ChunkData[] => {
+    // Prefer new chunks array if available
+    if (source.chunks && Array.isArray(source.chunks) && source.chunks.length > 0) {
+      return source.chunks;
+    }
+    
+    // Fall back to legacy chunk_data format for backward compatibility
+    if (source.chunk_data) {
+      return [source.chunk_data];
+    }
+    
+    return [];
+  };
 
   // Count sources by type
   const sourceCounts = sources.reduce((acc, source) => {
@@ -93,6 +112,10 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
   };
 
   const handleSourceClick = (source: ReferencedSource) => {
+    // Get normalized chunks array (handles both new chunks array and legacy chunk_data)
+    const chunks = getChunksFromSource(source);
+    console.log(`[ReferencedSourcesPanel] Clicking source "${source.name}" with ${chunks.length} chunks:`, chunks);
+    
     // If source has a path/URL
     if (source.path) {
       // Check if it's a document (PDF, DOC, etc.) - open in viewer
@@ -100,7 +123,7 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
         setViewingDocument({ 
           url: source.path, 
           name: source.name,
-          chunk_data: source.chunk_data // Pass chunk data for highlighting
+          chunks: chunks // Pass chunks array for highlighting
         });
         return;
       }
@@ -120,7 +143,7 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
         setViewingDocument({ 
           url: docUrl, 
           name: source.name,
-          chunk_data: source.chunk_data
+          chunks: chunks
         });
       }
     }
@@ -275,7 +298,7 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
                 {viewingDocument.url.toLowerCase().endsWith('.pdf') ? (
                   <PDFViewerWithHighlight
                     url={viewingDocument.url}
-                    chunkData={viewingDocument.chunk_data}
+                    chunks={viewingDocument.chunks}
                     title={viewingDocument.name}
                   />
                 ) : (

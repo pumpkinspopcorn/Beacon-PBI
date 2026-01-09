@@ -151,17 +151,43 @@ export default function PowerBIChatPage() {
       const response = await askQuestion(content);
       fullContent = response.answer || 'I apologize, but I couldn\'t generate a response.';
       
+      console.log('[PowerBIChat] API Response:', response);
+      console.log('[PowerBIChat] Sources from API:', response.sources);
+      
       // Convert sources to ReferencedSource format
-      const referencedSources = (response.sources || []).map((source, index) => ({
-        id: `source-${Date.now()}-${index}`,
-        type: 'file' as const,
-        name: source.filename || source.path || 'Unknown source',
-        path: source.path || '',
-        metadata: {
-          type: source.type || 'web',
-          is_table: source.is_table || false,
-        },
-      }));
+      const referencedSources = (response.sources || []).map((source, index) => {
+        console.log(`[PowerBIChat] Processing source ${index}:`, source);
+        
+        const sourceType = source.type === 'web' ? 'web' : 'file';
+        const referencedSource: any = {
+          id: `source-${Date.now()}-${index}`,
+          type: sourceType,
+          name: source.name || source.filename || source.path || 'Unknown source',
+          path: source.path || '',
+          metadata: {
+            type: source.type || 'web',
+            is_table: source.is_table || false,
+          },
+        };
+
+        // Preserve chunk data for PDF highlighting
+        if (source.chunks && Array.isArray(source.chunks)) {
+          referencedSource.chunks = source.chunks;
+          console.log(`[PowerBIChat] Source "${source.name}" has ${source.chunks.length} chunks:`, source.chunks);
+        } else {
+          console.log(`[PowerBIChat] Source "${source.name}" has NO chunks property`);
+        }
+        
+        // Backward compatibility with single chunk_data
+        if (source.chunk_data) {
+          referencedSource.chunk_data = source.chunk_data;
+          console.log(`[PowerBIChat] Source "${source.name}" has chunk_data:`, source.chunk_data);
+        } else {
+          console.log(`[PowerBIChat] Source "${source.name}" has NO chunk_data property`);
+        }
+
+        return referencedSource;
+      });
 
       // Update message with response
       updateConversationMessages(currentConversationId, (messages) =>
@@ -214,12 +240,7 @@ export default function PowerBIChatPage() {
     trackTelemetry('uploads');
 
     return new Promise((resolve, reject) => {
-      mockUploadFile(
-        { file },
-        (progress) => {
-          // Could show progress in UI
-        }
-      )
+      mockUploadFile({ file })
         .then((response) => {
           toast({
             title: 'File uploaded',
@@ -307,21 +328,18 @@ export default function PowerBIChatPage() {
     try {
       let fullContent = '';
 
-      await mockRegenerateMessage(
-        {
-          conversationId: currentConversationId,
-          messageId,
-        },
-        (chunk, full) => {
-          fullContent = full;
-          updateConversationMessages(currentConversationId, (messages) =>
-            messages.map((msg) =>
-              msg.id === messageId
-                ? { ...msg, content: full, streamedContent: full, isStreaming: true }
-                : msg
-            )
-          );
-        }
+      const response = await mockRegenerateMessage({
+        conversationId: currentConversationId,
+        messageId,
+      });
+      
+      fullContent = response.content;
+      updateConversationMessages(currentConversationId, (messages) =>
+        messages.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, content: response.content, isStreaming: false }
+            : msg
+        )
       );
 
       updateConversationMessages(currentConversationId, (messages) =>

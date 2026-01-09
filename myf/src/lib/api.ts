@@ -16,6 +16,16 @@ export interface AskQuestionResponse {
     is_table?: boolean;
     domain?: string;
     clickable?: boolean;
+    chunks?: Array<{
+      chunk_id: string;
+      page: number | null;
+      text: string;
+    }>;
+    chunk_data?: {
+      chunk_id: string;
+      page: number | null;
+      text: string;
+    };
   }>;
   citations?: Array<{
     id?: string;
@@ -29,15 +39,16 @@ export interface AskQuestionResponse {
 /**
  * Sends a question to the backend agent.
  */
-export async function askQuestion(question: string, session_id?: string): Promise<AskQuestionResponse> {
+export async function askQuestion(question: string): Promise<AskQuestionResponse> {
   const response = await fetch(`${API_BASE_URL}/ask`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ 
-      question,
-      session_id: session_id || "web_session_001"
+      question: question,
+      user_id: "web_user",
+      session_id: "web_session_001"
     }),
   });
 
@@ -46,7 +57,21 @@ export async function askQuestion(question: string, session_id?: string): Promis
     throw new Error(errorData.detail || "Failed to get response from agent");
   }
 
-  return response.json();
+  const data = await response.json();
+  
+  // DEBUG: Log the raw API response
+  console.log('[API] Raw response from backend:', JSON.stringify(data, null, 2));
+  console.log('[API] Sources in response:', data.sources);
+  if (data.sources && data.sources.length > 0) {
+    data.sources.forEach((source: any, i: number) => {
+      console.log(`[API] Source ${i} FULL OBJECT:`, JSON.stringify(source, null, 2));
+      console.log(`[API] Source ${i} keys:`, Object.keys(source));
+      console.log(`[API] Source ${i} chunks:`, source.chunks);
+      console.log(`[API] Source ${i} chunk_data:`, source.chunk_data);
+    });
+  }
+  
+  return data;
 }
 
 /**

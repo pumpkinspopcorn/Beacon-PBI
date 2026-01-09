@@ -279,13 +279,13 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="max-w-3xl mx-auto px-4">
-          <div className="relative flex items-end gap-2 px-3 py-1.5 transition-all border border-border rounded-xl bg-transparent">
+        <div className="max-w-4xl mx-auto">
+          <div className="relative flex items-center gap-3 px-4 py-3 transition-all border border-slate-300 rounded-full bg-white shadow-sm hover:shadow-md">
             {/* Attachment button */}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled || isUploading || !!editMode}
-              className="flex-shrink-0 p-2 text-slate-500 hover:text-slate-700 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Attach file"
             >
               {isUploading ? (
@@ -327,46 +327,40 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
               aria-label="Message input"
             />
 
-            {/* Mic inside input */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="flex-shrink-0 w-8 h-8 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 disabled:opacity-50"
+            {/* Mic button */}
+            <button
+              className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
               disabled={!!editMode}
               aria-label="Voice input"
             >
-              <Mic className="w-4 h-4" />
-            </Button>
+              <Mic className="w-5 h-5" />
+            </button>
 
             {/* Send/Stop button */}
             {isStreaming ? (
-              <Button
+              <button
                 onClick={onStopStreaming}
-                size="icon"
-                variant="ghost"
-                className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-white"
+                className="flex-shrink-0 w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center"
                 aria-label="Stop generating"
               >
                 <div className="w-3 h-3 bg-white rounded-sm" />
-              </Button>
+              </button>
             ) : (
-              <Button
+              <button
                 onClick={handleSend}
                 disabled={!canSend}
-                size="icon"
-                variant="ghost"
                 className={cn(
-                  'flex-shrink-0 w-8 h-8 rounded-full transition-all',
-                  canSend ? 'bg-primary text-primary-foreground hover:opacity-90' : 'bg-muted text-slate-400 cursor-not-allowed'
+                  'flex-shrink-0 w-9 h-9 rounded-full transition-all flex items-center justify-center',
+                  canSend 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                 )}
                 aria-label={editMode ? 'Save edit' : 'Send message'}
               >
                 <Send className="w-4 h-4" />
-              </Button>
+              </button>
             )}
           </div>
-
-          {/* Footer helper text removed per request */}
         </div>
       </div>
 

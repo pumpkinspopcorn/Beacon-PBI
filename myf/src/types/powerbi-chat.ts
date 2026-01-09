@@ -15,6 +15,13 @@ export interface FileAttachment {
   previewUrl?: string;
 }
 
+// Chunk data for PDF highlighting
+export interface ChunkData {
+  chunk_id: string;
+  page: number | null;
+  text: string;
+}
+
 // Referenced source
 export interface ReferencedSource {
   id: string;
@@ -23,11 +30,10 @@ export interface ReferencedSource {
   path?: string;
   icon?: string;
   metadata?: Record<string, any>;
-  chunk_data?: {
-    chunk_id: string;
-    page: number | null;
-    text: string;
-  };
+  /** @deprecated Use `chunks` array instead for multi-chunk support */
+  chunk_data?: ChunkData;
+  /** Array of chunks for multi-chunk highlighting support */
+  chunks?: ChunkData[];
 }
 
 // Table data structures

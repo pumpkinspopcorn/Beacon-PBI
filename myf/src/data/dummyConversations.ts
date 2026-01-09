@@ -920,31 +920,31 @@ Would you like me to create additional segmentation by product category or custo
 export const starterPrompts: StarterPrompt[] = [
   {
     id: 'prompt-1',
+    title: 'Error Agent',
+    description: 'Help with troubleshooting errors',
+    icon: 'AlertTriangle',
+    prompt: 'Help me troubleshoot errors in my Power BI report',
+  },
+  {
+    id: 'prompt-2',
     title: 'Performance Issues',
-    description: 'Speed up slow reports',
+    description: 'Optimize and improve performance',
     icon: 'Zap',
     prompt: 'PERFORMANCE_ISSUE_PREFILL', // Special marker for pre-filling text box
   },
   {
-    id: 'prompt-2',
-    title: 'Community Help',
-    description: 'Get help from the community',
-    icon: 'Network',
-    prompt: 'How can I get help from the Power BI community?',
-  },
-  {
     id: 'prompt-3',
-    title: 'Error Agent',
-    description: 'Fix errors and issues',
-    icon: 'RefreshCw',
-    prompt: 'Help me fix errors in my Power BI report',
+    title: 'Bug Investigation',
+    description: 'Investigate and fix bugs',
+    icon: 'Info',
+    prompt: 'Help me investigate and fix bugs in my report',
   },
   {
     id: 'prompt-4',
-    title: 'DAX Generator',
-    description: 'Generate DAX measures',
-    icon: 'Calculator',
-    prompt: 'DAX_GENERATION_MESSAGE', // Special marker for sending friendly message
+    title: 'General Support',
+    description: 'Get help with any questions',
+    icon: 'HelpCircle',
+    prompt: 'I need help with my Power BI report',
   },
 ];
 
