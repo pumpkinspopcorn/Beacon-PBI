@@ -113,7 +113,7 @@ function ObservabilityDashboard() {
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={handleReset}>
+                  <Button variant="outline" size="sm" onClick={handleReset} className="hover:bg-red-50 hover:border-red-200 hover:text-red-700 transition-colors">
                     Reset Stats
                   </Button>
                 </div>
@@ -411,8 +411,8 @@ function ObservabilityDashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {recentData?.requests && recentData.requests.length > 0 ? (
-                            recentData.requests
+                          {recentData && recentData.length > 0 ? (
+                            recentData
                               .slice()
                               .reverse()
                               .map((request, index) => (
