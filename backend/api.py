@@ -18,7 +18,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'Agents'))
 
 from team import root_agent
-from observability import track_llm_request, get_observability_stats, reset_observability_stats
+from observability import get_observability_stats, reset_observability_stats, track_llm_request
 from source_extractor import extract_sources_and_citations, format_sources_for_display
 
 app = FastAPI(title="PBI Beacon API")
@@ -50,11 +50,10 @@ class QuestionResponse(BaseModel):
 @app.post("/api/ask", response_model=QuestionResponse)
 async def ask_question(request: QuestionRequest):
     start_time = time.time()
-    input_tokens = 0
-    output_tokens = 0
-    model_used = "unknown"
-    success = False
-    error_msg = None
+    
+    # Track token usage from ADK events
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
     
     try:
         # Create session if it doesn't exist (ADK handles existing sessions)
@@ -77,28 +76,65 @@ async def ask_question(request: QuestionRequest):
             parts=[types.Part(text=request.question)]
         )
 
-        # Estimate input tokens (rough approximation: 1 token ≈ 4 characters)
-        input_tokens = len(request.question) // 4
-
         final_response_text = ""
         
-        # Run the agent
+        # Run the agent and capture token usage from events
         async for event in runner.run_async(
             user_id=request.user_id,
             session_id=request.session_id,
             new_message=user_message
         ):
+            # Extract token usage from ADK event's usage_metadata
+            if hasattr(event, 'usage_metadata') and event.usage_metadata:
+                usage = event.usage_metadata
+                prompt_tokens = getattr(usage, 'prompt_token_count', 0) or 0
+                completion_tokens = getattr(usage, 'candidates_token_count', 0) or 0
+                total_prompt_tokens += prompt_tokens
+                total_completion_tokens += completion_tokens
+                print(f"[ADK Event] Token usage - prompt: {prompt_tokens}, completion: {completion_tokens}")
+            
             if event.is_final_response():
                 if event.content and event.content.parts:
                     final_response_text = event.content.parts[0].text
-                    # Estimate output tokens
-                    output_tokens = len(final_response_text) // 4
-                    success = True
                     break
 
         if not final_response_text:
-            error_msg = "Agent failed to produce a response"
-            raise HTTPException(status_code=500, detail=error_msg)
+            raise HTTPException(status_code=500, detail="Agent failed to produce a response")
+
+        # Calculate latency
+        latency_ms = (time.time() - start_time) * 1000
+        
+        # Use ADK token counts if available, otherwise estimate
+        if total_prompt_tokens > 0 or total_completion_tokens > 0:
+            input_tokens = total_prompt_tokens
+            output_tokens = total_completion_tokens
+            print(f"[Observability] Using ADK token counts: {input_tokens} in / {output_tokens} out")
+        else:
+            # Fallback to LiteLLM token_counter for estimation
+            try:
+                import litellm
+                input_tokens = litellm.token_counter(model="gpt-3.5-turbo", text=request.question)
+                output_tokens = litellm.token_counter(model="gpt-3.5-turbo", text=final_response_text)
+                print(f"[Observability] Using LiteLLM token estimation: {input_tokens} in / {output_tokens} out")
+            except Exception as e:
+                # Final fallback to simple estimation
+                input_tokens = len(request.question) // 4
+                output_tokens = len(final_response_text) // 4
+                print(f"[Observability] Using simple estimation: {input_tokens} in / {output_tokens} out")
+        
+        # Track the request
+        track_llm_request(
+            model="grok-3-mini",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            latency_ms=latency_ms,
+            success=True,
+            error=None,
+            user_id=request.user_id,
+            session_id=request.session_id,
+            agent_name="root_agent"
+        )
+        print(f"[API] ✓ Tracked request: {input_tokens} in / {output_tokens} out / {latency_ms:.0f}ms")
 
         # Extract sources and citations from the response
         print(f"DEBUG: Original response: {final_response_text[:500]}...")
@@ -113,25 +149,6 @@ async def ask_question(request: QuestionRequest):
         else:
             print("DEBUG: No sources found - using original response")
 
-        # Calculate latency
-        latency_ms = (time.time() - start_time) * 1000
-        
-        # Try to determine model used (this might need adjustment based on your ADK setup)
-        model_used = "gemini-1.5-flash"  # Default assumption
-        
-        # Track the request
-        track_llm_request(
-            model=model_used,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            latency_ms=latency_ms,
-            success=success,
-            error=error_msg,
-            user_id=request.user_id,
-            session_id=request.session_id,
-            agent_name="root_agent"
-        )
-
         return QuestionResponse(
             answer=cleaned_response,
             session_id=request.session_id,
@@ -140,21 +157,31 @@ async def ask_question(request: QuestionRequest):
         )
 
     except Exception as e:
-        error_msg = str(e)
+        # Track failed request
         latency_ms = (time.time() - start_time) * 1000
         
-        # Track failed request
+        # Use accumulated tokens if any, otherwise estimate
+        if total_prompt_tokens > 0:
+            input_tokens = total_prompt_tokens
+        else:
+            try:
+                import litellm
+                input_tokens = litellm.token_counter(model="gpt-3.5-turbo", text=request.question)
+            except:
+                input_tokens = len(request.question) // 4
+            
         track_llm_request(
-            model=model_used,
+            model="grok-3-mini",
             input_tokens=input_tokens,
-            output_tokens=0,
+            output_tokens=total_completion_tokens,
             latency_ms=latency_ms,
             success=False,
-            error=error_msg,
+            error=str(e)[:500],
             user_id=request.user_id,
             session_id=request.session_id,
             agent_name="root_agent"
         )
+        print(f"[API] ✗ Tracked failed request: {str(e)[:100]}")
         
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -248,9 +275,8 @@ async def get_recent_requests(limit: int = 50):
     """Get recent LLM requests."""
     try:
         stats = get_observability_stats()
-        return {
-            "requests": stats.get("recent_requests", [])[:limit]
-        }
+        # Return array directly for frontend compatibility
+        return stats.get("recent_requests", [])[:limit]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get recent requests: {str(e)}")
 

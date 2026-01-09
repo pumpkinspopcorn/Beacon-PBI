@@ -10,14 +10,10 @@ env_path = os.path.join(backend_dir, '.env')
 if os.path.exists(env_path):
     load_dotenv(env_path, override=False)
 
-# Groq Configuration using LiteLLM
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-if GROQ_API_KEY:
-    os.environ["GROQ_API_KEY"] = GROQ_API_KEY
-
-# Groq model name (string) - will be wrapped with LiteLlm in agents
-# Using Llama 3.3 70B for better instruction following
-GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+# Azure Grok Model Configuration (via Azure AI Services)
+AZURE_GROK_ENDPOINT = os.getenv("AZURE_GROK_ENDPOINT")
+AZURE_GROK_KEY = os.getenv("AZURE_GROK_KEY")
+AZURE_GROK_MODEL = os.getenv("AZURE_GROK_MODEL", "grok-3-mini")
 
 # Azure OpenAI Configuration for Embeddings
 AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")

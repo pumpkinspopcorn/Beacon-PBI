@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { askQuestion, clearHistory } from "@/lib/api";
 import { Message } from "@/types/powerbi-chat";
 import { toast } from "sonner";
+import { getCurrentConversationId, setCurrentConversationId, updateMessages, getConversationById } from "@/lib/chatHistory";
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -14,13 +15,16 @@ export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]); // Start with empty chat
   const [isTyping, setIsTyping] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [conversationId, setConversationId] = useState<string>(() => getCurrentConversationId() || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
 
   // Auto-create new chat on first load
   useEffect(() => {
     if (!isInitialized) {
       // Ensure we start with empty messages
-      setMessages([]);
+      const existing = getConversationById(conversationId);
+      setMessages(existing?.messages ?? []);
       setIsInitialized(true);
+      setCurrentConversationId(conversationId);
       
       // Show a toast to indicate new chat is ready
       setTimeout(() => {
@@ -28,6 +32,11 @@ export function useChat() {
       }, 500);
     }
   }, [isInitialized]);
+
+  // Persist messages to chat history on change
+  useEffect(() => {
+    updateMessages(conversationId, messages);
+  }, [conversationId, messages]);
 
   const askMutation = useMutation({
     mutationFn: askQuestion,
@@ -119,6 +128,9 @@ The Flask backend should be running on port 8000 with these endpoints:
   }, [clearMutation]);
 
   const newChat = useCallback(() => {
+    const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    setConversationId(newId);
+    setCurrentConversationId(newId);
     setMessages([]);
     toast.success("New chat session started");
   }, []);
@@ -131,5 +143,6 @@ The Flask backend should be running on port 8000 with these endpoints:
     clearChat,
     newChat,
     isClearingChat: clearMutation.isPending,
+    conversationId,
   };
 }

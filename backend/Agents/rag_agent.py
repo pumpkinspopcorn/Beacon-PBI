@@ -8,7 +8,9 @@ from langchain_community.retrievers import AzureAISearchRetriever
 from langchain_openai import AzureOpenAIEmbeddings
 from google.adk.models.lite_llm import LiteLlm
 from config import (
-    GROQ_MODEL, 
+    AZURE_GROK_ENDPOINT,
+    AZURE_GROK_KEY,
+    AZURE_GROK_MODEL,
     AZURE_SEARCH_ENDPOINT, 
     AZURE_SEARCH_KEY, 
     AZURE_SEARCH_INDEX,
@@ -16,6 +18,17 @@ from config import (
     AZURE_OPENAI_KEY,
     AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
     AZURE_OPENAI_API_VERSION
+)
+
+# Set up Azure AI credentials for LiteLLM
+os.environ["AZURE_AI_API_KEY"] = AZURE_GROK_KEY
+os.environ["AZURE_AI_API_BASE"] = AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+
+# Create Azure Grok model
+azure_grok_model = LiteLlm(
+    model=f"azure_ai/{AZURE_GROK_MODEL}",
+    api_key=AZURE_GROK_KEY,
+    api_base=AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
 )
 
 # Lazy embeddings initialization
@@ -154,7 +167,7 @@ rag_search_tool = LangchainTool(
 rag_agent = Agent(
     name="rag_agent",
     description="Internal knowledge base specialist for semantic search over internal documents.",
-    model=LiteLlm(model=f"groq/{GROQ_MODEL}"),
+    model=azure_grok_model,
     tools=[rag_search_tool],
     instruction="""You are an internal knowledge base specialist. Use rag_search to retrieve documents.
 

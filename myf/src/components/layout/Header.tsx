@@ -1,23 +1,12 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { MessageSquarePlus, Trash2, Activity, Sun, Moon } from "lucide-react";
+import { MessageSquarePlus, Activity, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useHealth } from "@/hooks/useHealth";
 import tetraPakLogo from "@/images/tetra_pak-logo_brandlogos.net_hnude.png";
-import OurLogo from "@/assets/ourlogo.png";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+// Removed alert dialog for Clear History to simplify header actions
 import {
   Tooltip,
   TooltipContent,
@@ -58,6 +47,23 @@ export function Header({
     localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
+  const PowerBILogo: React.FC<{ className?: string }> = ({ className }) => (
+    <svg
+      className={className}
+      viewBox="0 0 48 48"
+      role="img"
+      aria-label="Power BI"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <title>Power BI</title>
+      <g fill="#F2C811">
+        <rect x="6" y="20" width="8" height="20" rx="2" />
+        <rect x="20" y="12" width="8" height="28" rx="2" />
+        <rect x="34" y="24" width="8" height="16" rx="2" />
+      </g>
+    </svg>
+  );
+
   return (
     <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-4 lg:px-6">
       <div className="flex items-center gap-3">
@@ -77,12 +83,8 @@ export function Header({
           {/* Vertical line separator */}
           <div className="hidden sm:block h-8 w-0.5 bg-slate-300 dark:bg-slate-600" />
           
-          {/* Our Logo - slightly left of text */}
-          <img
-            src={OurLogo}
-            alt="Logo"
-            className="h-8 w-auto object-contain"
-          />
+          {/* Power BI Logo */}
+          <PowerBILogo className="h-8 w-8" />
           
           {/* Text content - stacked vertically */}
           <div className="flex flex-col">
@@ -143,42 +145,7 @@ export function Header({
               <TooltipContent side="bottom">New Chat</TooltipContent>
             </Tooltip>
 
-            {/* Clear History */}
-            <AlertDialog>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={isClearingChat}
-                      className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Clear History</TooltipContent>
-              </Tooltip>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Clear conversation history?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete all messages in this conversation.
-                    This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={onClearChat}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Clear History
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {/* Clear History removed per request */}
           </>
         )}
       </div>

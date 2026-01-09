@@ -1,10 +1,22 @@
 from typing import Annotated
+import os
 from google.adk.agents import Agent
 from google.adk.tools.langchain_tool import LangchainTool
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_core.tools import StructuredTool
 from google.adk.models.lite_llm import LiteLlm
-from config import GROQ_MODEL
+from config import AZURE_GROK_ENDPOINT, AZURE_GROK_KEY, AZURE_GROK_MODEL
+
+# Set up Azure AI credentials for LiteLLM
+os.environ["AZURE_AI_API_KEY"] = AZURE_GROK_KEY
+os.environ["AZURE_AI_API_BASE"] = AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+
+# Create Azure Grok model
+azure_grok_model = LiteLlm(
+    model=f"azure_ai/{AZURE_GROK_MODEL}",
+    api_key=AZURE_GROK_KEY,
+    api_base=AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+)
 
 # --------------------------------------------------
 # TOOL: DUCKDUCKGO SEARCH
@@ -61,7 +73,7 @@ duckduckgo_tool = LangchainTool(
 internet_agent = Agent(
     name="internet_agent",
     description="Web search specialist that searches the internet and returns formatted responses with clickable website links.",
-    model=LiteLlm(model=f"groq/{GROQ_MODEL}"),
+    model=azure_grok_model,
     tools=[duckduckgo_tool],
     instruction="""You are a web search agent. Your job is to search the internet and format responses with clickable website references.
 

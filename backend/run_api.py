@@ -12,11 +12,11 @@ if os.path.exists(env_path):
     load_dotenv(env_path, override=True)
     print(f"Loaded .env file from: {env_path}")
     # Verify critical environment variables are loaded (without printing values)
-    groq_key = os.getenv("GROQ_API_KEY")
-    if groq_key:
-        print(f"✓ GROQ_API_KEY is loaded (length: {len(groq_key)} characters)")
+    azure_grok_key = os.getenv("AZURE_GROK_KEY")
+    if azure_grok_key:
+        print(f"✓ AZURE_GROK_KEY is loaded (length: {len(azure_grok_key)} characters)")
     else:
-        print("⚠ Warning: GROQ_API_KEY not found in environment variables")
+        print("⚠ Warning: AZURE_GROK_KEY not found in environment variables")
 else:
     print(f"Warning: .env file not found at: {env_path}")
 

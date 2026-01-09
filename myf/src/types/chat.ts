@@ -59,6 +59,8 @@ export interface ObservabilityStats {
     total_tokens_output: number;
     total_tokens: number;
     total_cost_usd: number;
+    input_cost_usd: number;
+    output_cost_usd: number;
     average_latency_ms: number;
   };
   by_model: {
@@ -68,7 +70,10 @@ export interface ObservabilityStats {
       tokens_output: number;
       tokens_total: number;
       cost_usd: number;
+      input_cost_usd: number;
+      output_cost_usd: number;
       average_latency_ms: number;
+      success_rate: number;
     };
   };
   hourly_breakdown: Array<{
@@ -83,6 +88,8 @@ export interface ObservabilityStats {
     output_tokens: number;
     total_tokens: number;
     cost: number;
+    input_cost: number;
+    output_cost: number;
     latency_ms: number;
     success: boolean;
     error?: string;

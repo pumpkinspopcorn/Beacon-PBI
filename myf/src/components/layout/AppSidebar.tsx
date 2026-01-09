@@ -1,5 +1,5 @@
-import { MessageSquare, Clock, Settings, HelpCircle, MessageSquarePlus, PanelLeftClose, PanelLeft, Search, BarChart3 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { MessageSquare, History, Settings2, LifeBuoy, PanelLeftClose, PanelLeft, Search, BarChart3 } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import React from "react";
+import { useChatHistory } from "@/hooks/useChatHistory";
 
 interface ConversationItem {
   id: string;
@@ -27,42 +28,35 @@ interface ConversationItem {
 interface AppSidebarProps {
   conversations?: ConversationItem[];
   onSelectConversation?: (id: string) => void;
-  onNewChat?: () => void;
+  onNewChat?: () => void; // kept for compatibility, not used here
 }
 
-export function AppSidebar({ conversations = [], onSelectConversation, onNewChat }: AppSidebarProps) {
+export function AppSidebar({ conversations = [], onSelectConversation }: AppSidebarProps) {
   const { toggleSidebar, open } = useSidebar();
   const [activePanel, setActivePanel] = React.useState<null | "search" | "history">(null);
+  const location = useLocation();
+  const isObservability = location.pathname.startsWith("/observability");
+  const navigate = useNavigate();
+  const { conversations: history, setCurrentId } = useChatHistory();
 
   // Default recent conversations for demo
-  const recentConversations: ConversationItem[] = conversations.length > 0 
-    ? conversations 
-    : [
-        { id: "1", title: "Current Session", timestamp: "Now", isActive: true },
-      ];
+  const recentConversations: ConversationItem[] = (history.length > 0
+    ? history.map((c) => ({ id: c.id, title: c.title || "Untitled Chat", timestamp: new Date(c.updatedAt).toLocaleTimeString(), isActive: false }))
+    : [{ id: "current", title: "Current Session", timestamp: "Now", isActive: true }]);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border p-3">
         <div className="flex flex-col gap-2">
+          {/* Top bar */}
           <div className="flex items-center justify-between group-data-[collapsible=icon]:hidden">
-            <h2 className="font-semibold text-sidebar-foreground text-sm">Chats</h2>
+            <h2 className="font-semibold text-sidebar-foreground text-sm tracking-wide">Chats</h2>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onNewChat}
-                className="h-8 px-3 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200 flex items-center gap-2"
-                title="New Chat"
-              >
-                <MessageSquarePlus className="h-4 w-4" />
-                <span className="text-sm">New Chat</span>
-              </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={toggleSidebar}
-                className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+                className="h-8 w-8 text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm hover:text-sidebar-foreground transition-all duration-200 rounded-md"
                 title={open ? "Close Sidebar" : "Open Sidebar"}
               >
                 {open ? (
@@ -74,53 +68,45 @@ export function AppSidebar({ conversations = [], onSelectConversation, onNewChat
             </div>
           </div>
 
-          {/* Collapsed mode - show only icons (ChatGPT style) */}
-          <div className="hidden group-data-[collapsible=icon]:flex flex-col items-center gap-1">
-            <Button 
-              variant="ghost" 
+          {/* Expanded mode quick toggles removed to restore original structure */}
+
+          {/* Collapsed mode - icon column */}
+          <div className="hidden group-data-[collapsible=icon]:flex flex-col items-center gap-1 py-1">
+            <Button
+              variant="ghost"
               size="icon"
-              onClick={toggleSidebar} 
-              className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+              onClick={toggleSidebar}
+              className="relative h-10 w-10 text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm hover:text-sidebar-foreground transition-all duration-200 rounded-lg"
               title="Expand Sidebar"
             >
               <PanelLeft className="h-5 w-5" />
             </Button>
-            
-            <Button 
-              variant="ghost" 
+
+            <Button
+              variant="ghost"
               size="icon"
-              onClick={onNewChat} 
-              className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
-              title="New Chat"
-            >
-              <MessageSquarePlus className="h-5 w-5" />
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setActivePanel(activePanel === "search" ? null : "search")} 
-              className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+              onClick={() => setActivePanel(activePanel === "search" ? null : "search")}
+              className={`relative h-10 w-10 transition-all duration-200 rounded-lg ${activePanel === "search" ? "bg-white/40 backdrop-blur-sm text-sidebar-foreground" : "text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm"}`}
               title="Search"
             >
               <Search className="h-5 w-5" />
             </Button>
-            
-            <Button 
-              variant="ghost" 
+
+            <Button
+              variant="ghost"
               size="icon"
-              onClick={() => setActivePanel(activePanel === "history" ? null : "history")} 
-              className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+              onClick={() => setActivePanel(activePanel === "history" ? null : "history")}
+              className={`relative h-10 w-10 transition-all duration-200 rounded-lg ${activePanel === "history" ? "bg-white/40 backdrop-blur-sm text-sidebar-foreground" : "text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm"}`}
               title="History"
             >
-              <Clock className="h-5 w-5" />
+              <History className="h-5 w-5" />
             </Button>
 
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               asChild
-              className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+              className={`relative h-10 w-10 transition-all duration-200 rounded-lg ${isObservability ? "bg-white/40 backdrop-blur-sm text-sidebar-foreground" : "text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm"}`}
               title="Analytics"
             >
               <Link to="/observability">
@@ -128,22 +114,22 @@ export function AppSidebar({ conversations = [], onSelectConversation, onNewChat
               </Link>
             </Button>
 
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
-              className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+              className="h-10 w-10 text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm hover:text-sidebar-foreground transition-all duration-200 rounded-lg"
               title="Help"
             >
-              <HelpCircle className="h-5 w-5" />
+              <LifeBuoy className="h-5 w-5" />
             </Button>
 
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
-              className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+              className="h-10 w-10 text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm hover:text-sidebar-foreground transition-all duration-200 rounded-lg"
               title="Settings"
             >
-              <Settings className="h-5 w-5" />
+              <Settings2 className="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -152,7 +138,7 @@ export function AppSidebar({ conversations = [], onSelectConversation, onNewChat
       <SidebarContent className="scrollbar-thin group-data-[collapsible=icon]:hidden">
         {/* Recent Conversations */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-sidebar-foreground/80">
             Recent Chats
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -161,14 +147,20 @@ export function AppSidebar({ conversations = [], onSelectConversation, onNewChat
                 <SidebarMenuItem key={conv.id}>
                   <SidebarMenuButton
                     isActive={conv.isActive}
-                    onClick={() => onSelectConversation?.(conv.id)}
-                    className="gap-3"
+                    onClick={() => {
+                      if (conv.id !== "current") {
+                        setCurrentId(conv.id);
+                      }
+                      navigate("/");
+                      onSelectConversation?.(conv.id);
+                    }}
+                    className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30"
                   >
                     <MessageSquare className="h-4 w-4" />
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm">{conv.title}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
+                      <p className="truncate text-sm font-medium text-sidebar-foreground">{conv.title}</p>
+                      <p className="text-xs text-sidebar-foreground/80 flex items-center gap-1">
+                        <History className="h-3 w-3" />
                         {conv.timestamp}
                       </p>
                     </div>
@@ -181,19 +173,19 @@ export function AppSidebar({ conversations = [], onSelectConversation, onNewChat
 
         {/* Quick Links */}
         <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-sidebar-foreground/80">
             Quick Links
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton className="gap-3">
-                  <HelpCircle className="h-4 w-4" />
+                <SidebarMenuButton className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30">
+                  <LifeBuoy className="h-4 w-4" />
                   <span>Help & Tips</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className="gap-3">
+                <SidebarMenuButton asChild className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30" isActive={isObservability}>
                   <Link to="/observability">
                     <BarChart3 className="h-4 w-4" />
                     <span>Observability</span>
@@ -201,8 +193,8 @@ export function AppSidebar({ conversations = [], onSelectConversation, onNewChat
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton className="gap-3">
-                  <Settings className="h-4 w-4" />
+                <SidebarMenuButton className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30">
+                  <Settings2 className="h-4 w-4" />
                   <span>Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -211,9 +203,7 @@ export function AppSidebar({ conversations = [], onSelectConversation, onNewChat
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-4 group-data-[collapsible=icon]:hidden">
-        {/* System status removed */}
-      </SidebarFooter>
+      <SidebarFooter className="border-t border-sidebar-border p-4 group-data-[collapsible=icon]:hidden" />
 
       {/* Slide-out panels */}
       <AnimatePresence>
@@ -249,7 +239,7 @@ export function AppSidebar({ conversations = [], onSelectConversation, onNewChat
             {activePanel === "history" && (
               <div className="p-4 max-h-80 overflow-y-auto scrollbar-thin">
                 <div className="flex items-center gap-2 mb-3">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <History className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">Recent Conversations</span>
                 </div>
                 <ul className="space-y-1">

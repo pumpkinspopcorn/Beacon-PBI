@@ -120,14 +120,7 @@ describe('Property 6: Page-Specific Highlighting', () => {
   });
 });
 
-/**
- * Feature: pdf-chunk-highlighting, Property 7: Initial Page Navigation
- * 
- * *For any* chunk data with a non-null page number P, opening the PDF viewer 
- * SHALL set currentPage to P.
- * 
- * **Validates: Requirements 2.2**
- */
+
 describe('Property 7: Initial Page Navigation', () => {
   it('getInitialPage returns first chunk page when valid', () => {
     fc.assert(
@@ -207,30 +200,22 @@ describe('Property 7: Initial Page Navigation', () => {
   });
 });
 
-/**
- * Feature: pdf-chunk-highlighting, Property 8: Chunk Navigation Bounds
- * 
- * *For any* document with N chunks, the current chunk index SHALL always be 
- * in range [0, N-1] after any navigation action.
- * 
- * **Validates: Requirements 4.1, 4.2**
- */
 describe('Property 8: Chunk Navigation Bounds', () => {
   it('clampChunkIndex always returns index in valid range [0, N-1]', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: -1000, max: 1000 }), // Any requested index
-        fc.integer({ min: 1, max: 100 }),       // Total chunks (at least 1)
+        fc.integer({ min: -1000, max: 1000 }), 
+        fc.integer({ min: 1, max: 100 }),       
         (requestedIndex, totalChunks) => {
           const result = clampChunkIndex(requestedIndex, totalChunks);
           
-          // Result must be >= 0
+          
           expect(result).toBeGreaterThanOrEqual(0);
           
-          // Result must be < totalChunks (i.e., <= totalChunks - 1)
+         
           expect(result).toBeLessThan(totalChunks);
           
-          // Result must be in range [0, totalChunks - 1]
+          
           expect(result).toBeGreaterThanOrEqual(0);
           expect(result).toBeLessThanOrEqual(totalChunks - 1);
           
@@ -244,12 +229,12 @@ describe('Property 8: Chunk Navigation Bounds', () => {
   it('clampChunkIndex returns 0 when totalChunks is 0 or negative', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: -1000, max: 1000 }), // Any requested index
-        fc.integer({ min: -100, max: 0 }),      // Zero or negative total chunks
+        fc.integer({ min: -1000, max: 1000 }), 
+        fc.integer({ min: -100, max: 0 }),      
         (requestedIndex, totalChunks) => {
           const result = clampChunkIndex(requestedIndex, totalChunks);
           
-          // Should return 0 for empty/invalid chunk arrays
+          
           expect(result).toBe(0);
           
           return true;
@@ -264,11 +249,11 @@ describe('Property 8: Chunk Navigation Bounds', () => {
       fc.property(
         fc.integer({ min: 1, max: 100 }), // Total chunks
         (totalChunks) => {
-          // Generate a valid index within range
+          
           const validIndex = Math.floor(Math.random() * totalChunks);
           const result = clampChunkIndex(validIndex, totalChunks);
           
-          // Valid index should be preserved
+          
           expect(result).toBe(validIndex);
           
           return true;

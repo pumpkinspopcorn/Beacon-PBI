@@ -76,23 +76,18 @@ export const PDFViewerWithHighlight: React.FC<PDFViewerWithHighlightProps> = ({
   // Requirements: 6.1 - Validate chunk data structure on component mount
   // Return empty highlights for invalid data and log warnings for debugging
   const rawChunks = useMemo(() => {
-    console.log(`[PDFViewer] Props received - chunksProp:`, chunksProp, `chunkData:`, chunkData);
-    
     // First, try to use the new chunks array prop
     if (chunksProp !== undefined) {
       const validChunks = safeProcessChunks(chunksProp, true);
-      console.log(`[PDFViewer] Using chunksProp, processed to:`, validChunks);
       return validChunks;
     }
     
     // Fall back to legacy chunkData prop
     if (chunkData !== undefined) {
       const validChunks = safeProcessChunks([chunkData], true);
-      console.log(`[PDFViewer] Using chunkData, processed to:`, validChunks);
       return validChunks;
     }
     
-    console.log(`[PDFViewer] No chunks provided`);
     return [];
   }, [chunksProp, chunkData]);
 
@@ -580,11 +575,11 @@ export const PDFViewerWithHighlight: React.FC<PDFViewerWithHighlightProps> = ({
       )}
 
       {/* PDF Canvas */}
-      <div ref={containerRef} className="flex-1 overflow-auto p-4 bg-slate-100">
-        <div className="flex justify-center min-h-full">
+      <div ref={containerRef} className="flex-1 overflow-auto p-4">
+        <div className="flex justify-center">
           <canvas
             ref={canvasRef}
-            className="shadow-lg border border-slate-300 max-w-full h-auto"
+            className="shadow-lg border border-slate-300"
           />
         </div>
       </div>
