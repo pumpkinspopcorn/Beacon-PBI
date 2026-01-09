@@ -124,7 +124,7 @@ async def ask_question(request: QuestionRequest):
         
         # Track the request
         track_llm_request(
-            model="grok-3-mini",
+            model="gpt-4.1",
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             latency_ms=latency_ms,
@@ -137,17 +137,11 @@ async def ask_question(request: QuestionRequest):
         print(f"[API] ✓ Tracked request: {input_tokens} in / {output_tokens} out / {latency_ms:.0f}ms")
 
         # Extract sources and citations from the response
-        print(f"DEBUG: Original response: {final_response_text[:500]}...")
-        print(f"DEBUG: Looking for CHUNK_META in response: {'CHUNK_META' in final_response_text}")
         cleaned_response, sources, citations = extract_sources_and_citations(final_response_text)
-        print(f"DEBUG: Sources after extraction: {sources}")
         formatted_sources = format_sources_for_display(sources, citations)
-        print(f"DEBUG: Found {len(sources)} sources, {len(citations)} citations, {len(formatted_sources)} formatted")
         
         if formatted_sources:
-            print(f"DEBUG: Formatted sources with chunk_data: {formatted_sources}")
-        else:
-            print("DEBUG: No sources found - using original response")
+            print(f"[API] ✓ Extracted {len(formatted_sources)} sources from response")
 
         return QuestionResponse(
             answer=cleaned_response,
@@ -171,7 +165,7 @@ async def ask_question(request: QuestionRequest):
                 input_tokens = len(request.question) // 4
             
         track_llm_request(
-            model="grok-3-mini",
+            model="gpt-4.1",
             input_tokens=input_tokens,
             output_tokens=total_completion_tokens,
             latency_ms=latency_ms,

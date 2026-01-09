@@ -8,9 +8,10 @@ from langchain_community.retrievers import AzureAISearchRetriever
 from langchain_openai import AzureOpenAIEmbeddings
 from google.adk.models.lite_llm import LiteLlm
 from config import (
-    AZURE_GROK_ENDPOINT,
-    AZURE_GROK_KEY,
-    AZURE_GROK_MODEL,
+    AZURE_OPENAI_DEPLOYMENT,
+    AZURE_API_BASE,
+    AZURE_API_VERSION,
+    AZURE_API_KEY,
     AZURE_SEARCH_ENDPOINT_COMM, 
     AZURE_SEARCH_KEY_COMM, 
     AZURE_SEARCH_INDEX_COMM,
@@ -20,15 +21,17 @@ from config import (
     AZURE_OPENAI_API_VERSION
 )
 
-# Set up Azure AI credentials for LiteLLM
-os.environ["AZURE_AI_API_KEY"] = AZURE_GROK_KEY
-os.environ["AZURE_AI_API_BASE"] = AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+# Set up Azure OpenAI credentials for LiteLLM
+os.environ["AZURE_API_KEY"] = AZURE_API_KEY
+os.environ["AZURE_API_BASE"] = AZURE_API_BASE
+os.environ["AZURE_API_VERSION"] = AZURE_API_VERSION
 
-# Create Azure Grok model
-azure_grok_model = LiteLlm(
-    model=f"azure_ai/{AZURE_GROK_MODEL}",
-    api_key=AZURE_GROK_KEY,
-    api_base=AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+# Create Azure OpenAI model
+azure_openai_model = LiteLlm(
+    model=AZURE_OPENAI_DEPLOYMENT,
+    api_key=AZURE_API_KEY,
+    api_base=AZURE_API_BASE,
+    api_version=AZURE_API_VERSION
 )
 
 # Initialize Azure OpenAI Embeddings lazily (only when needed)
@@ -158,7 +161,7 @@ community_search_tool = LangchainTool(
 community_agent = Agent(
     name="community_agent",
     description="Community knowledge specialist for user discussions using semantic search.",
-    model=azure_grok_model,
+    model=azure_openai_model,
     tools=[community_search_tool],
     instruction="""You are a community knowledge specialist responsible for answering questions STRICTLY
 based on community discussions retrieved from the community_search tool.

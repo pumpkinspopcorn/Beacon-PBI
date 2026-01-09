@@ -11,24 +11,25 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from google.adk.models.lite_llm import LiteLlm
 
-from config import AZURE_GROK_ENDPOINT, AZURE_GROK_KEY, AZURE_GROK_MODEL
+from config import AZURE_OPENAI_DEPLOYMENT, AZURE_API_BASE, AZURE_API_VERSION, AZURE_API_KEY
 from internet_agent import internet_agent
 from rag_agent import rag_agent
 from community_agent import community_agent
 
 # --------------------------------------------------
-# AZURE GROK MODEL CONFIGURATION
+# AZURE OPENAI GPT-4.1 MODEL CONFIGURATION
 # --------------------------------------------------
-# Set up LiteLLM to use Azure AI Services endpoint for Grok
-os.environ["AZURE_AI_API_KEY"] = AZURE_GROK_KEY
-os.environ["AZURE_AI_API_BASE"] = AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+# Set up environment variables for LiteLLM
+os.environ["AZURE_API_KEY"] = AZURE_API_KEY
+os.environ["AZURE_API_BASE"] = AZURE_API_BASE
+os.environ["AZURE_API_VERSION"] = AZURE_API_VERSION
 
-# Create the LiteLLM model wrapper for Azure Grok
-# Using azure_ai/ prefix for Azure AI Services (not Azure OpenAI)
-azure_grok_model = LiteLlm(
-    model=f"azure_ai/{AZURE_GROK_MODEL}",
-    api_key=AZURE_GROK_KEY,
-    api_base=AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+# Create the LiteLLM model wrapper for Azure OpenAI GPT-4.1
+azure_openai_model = LiteLlm(
+    model=AZURE_OPENAI_DEPLOYMENT,  # "azure/gpt-4.1"
+    api_key=AZURE_API_KEY,
+    api_base=AZURE_API_BASE,
+    api_version=AZURE_API_VERSION
 )
 
 # --------------------------------------------------
@@ -37,7 +38,7 @@ azure_grok_model = LiteLlm(
 manager_agent = Agent(
     name="manager_agent",
     description="Power BI Assistant that helps users with questions, troubleshooting, and guidance.",
-    model=azure_grok_model,
+    model=azure_openai_model,
     tools=[],  # Critical: explicitly empty
     sub_agents=[internet_agent, rag_agent, community_agent],
     instruction="""You are a helpful Power BI Assistant. Your goal is to provide excellent support to users working with Power BI.
@@ -189,7 +190,7 @@ async def chat_loop():
     print("=" * 60)
     print("Power BI Assistant Ready!")
     print("=" * 60)
-    print(f"Model: Azure Grok ({AZURE_GROK_MODEL}) via LiteLLM")
+    print(f"Model: Azure OpenAI ({AZURE_OPENAI_DEPLOYMENT}) via LiteLLM")
     print("Capabilities:")
     print("  - Internet Search: Latest Power BI updates and news")
     print("  - Internal Docs: Company documentation and procedures")

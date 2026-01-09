@@ -43,7 +43,28 @@ class ObservabilityTracker:
         # Token pricing per model (USD per 1M tokens)
         # Updated pricing as of 2025
         self._pricing = {
-            # Azure Grok models (xAI on Azure)
+            # Azure OpenAI models
+            "gpt-4.1": {
+                "input": 2.50,       # $2.50 per 1M input tokens (estimated)
+                "output": 10.00      # $10.00 per 1M output tokens (estimated)
+            },
+            "gpt-4o": {
+                "input": 2.50,       # $2.50 per 1M input tokens
+                "output": 10.00      # $10.00 per 1M output tokens
+            },
+            "gpt-4o-mini": {
+                "input": 0.15,       # $0.15 per 1M input tokens
+                "output": 0.60       # $0.60 per 1M output tokens
+            },
+            "gpt-4-turbo": {
+                "input": 10.00,      # $10.00 per 1M input tokens
+                "output": 30.00      # $30.00 per 1M output tokens
+            },
+            "gpt-3.5-turbo": {
+                "input": 0.50,       # $0.50 per 1M input tokens
+                "output": 1.50       # $1.50 per 1M output tokens
+            },
+            # Azure Grok models (xAI on Azure - backup)
             "grok-3-mini": {
                 "input": 0.30,       # Estimated pricing
                 "output": 0.50       # Estimated pricing
@@ -64,19 +85,6 @@ class ObservabilityTracker:
             "gemini-2.0-flash": {
                 "input": 0.10,       # $0.10 per 1M input tokens
                 "output": 0.40       # $0.40 per 1M output tokens
-            },
-            # Azure OpenAI models
-            "gpt-4o": {
-                "input": 2.50,       # $2.50 per 1M input tokens
-                "output": 10.00      # $10.00 per 1M output tokens
-            },
-            "gpt-4o-mini": {
-                "input": 0.15,       # $0.15 per 1M input tokens
-                "output": 0.60       # $0.60 per 1M output tokens
-            },
-            "gpt-4-turbo": {
-                "input": 10.00,      # $10.00 per 1M input tokens
-                "output": 30.00      # $30.00 per 1M output tokens
             },
             # Llama models (if using via other providers)
             "llama-3.3-70b-versatile": {

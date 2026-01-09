@@ -281,11 +281,11 @@ function ObservabilityDashboard() {
                     </CardContent>
                   </Card>
 
-                  {/* Azure Grok Model Status */}
+                  {/* Azure OpenAI Model Status */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Azure Grok Model Status</CardTitle>
-                      <CardDescription>Real-time monitoring of your deployed Azure Grok model</CardDescription>
+                      <CardTitle>Azure OpenAI Model Status</CardTitle>
+                      <CardDescription>Real-time monitoring of your deployed Azure OpenAI model</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="grid gap-4 md:grid-cols-2">
@@ -293,22 +293,22 @@ function ObservabilityDashboard() {
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">Model Endpoint</span>
                             <Badge variant="outline" className="text-xs">
-                              Azure AI Services
+                              Azure OpenAI
                             </Badge>
                           </div>
                           <p className="text-xs font-mono bg-muted p-2 rounded">
-                            gargi-mk2bzl3b-eastus2.services.ai.azure.com
+                            azureesopenai.openai.azure.com
                           </p>
                         </div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">Model Version</span>
                             <Badge variant="default">
-                              grok-3-mini
+                              GPT-4.1
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            Deployed via Azure AI Foundry
+                            Deployed via Azure OpenAI Service
                           </p>
                         </div>
                       </div>

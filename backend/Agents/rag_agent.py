@@ -8,9 +8,10 @@ from langchain_community.retrievers import AzureAISearchRetriever
 from langchain_openai import AzureOpenAIEmbeddings
 from google.adk.models.lite_llm import LiteLlm
 from config import (
-    AZURE_GROK_ENDPOINT,
-    AZURE_GROK_KEY,
-    AZURE_GROK_MODEL,
+    AZURE_OPENAI_DEPLOYMENT,
+    AZURE_API_BASE,
+    AZURE_API_VERSION,
+    AZURE_API_KEY,
     AZURE_SEARCH_ENDPOINT, 
     AZURE_SEARCH_KEY, 
     AZURE_SEARCH_INDEX,
@@ -20,15 +21,17 @@ from config import (
     AZURE_OPENAI_API_VERSION
 )
 
-# Set up Azure AI credentials for LiteLLM
-os.environ["AZURE_AI_API_KEY"] = AZURE_GROK_KEY
-os.environ["AZURE_AI_API_BASE"] = AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+# Set up Azure OpenAI credentials for LiteLLM
+os.environ["AZURE_API_KEY"] = AZURE_API_KEY
+os.environ["AZURE_API_BASE"] = AZURE_API_BASE
+os.environ["AZURE_API_VERSION"] = AZURE_API_VERSION
 
-# Create Azure Grok model
-azure_grok_model = LiteLlm(
-    model=f"azure_ai/{AZURE_GROK_MODEL}",
-    api_key=AZURE_GROK_KEY,
-    api_base=AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+# Create Azure OpenAI model
+azure_openai_model = LiteLlm(
+    model=AZURE_OPENAI_DEPLOYMENT,
+    api_key=AZURE_API_KEY,
+    api_base=AZURE_API_BASE,
+    api_version=AZURE_API_VERSION
 )
 
 # Lazy embeddings initialization
@@ -167,9 +170,27 @@ rag_search_tool = LangchainTool(
 rag_agent = Agent(
     name="rag_agent",
     description="Internal knowledge base specialist for semantic search over internal documents.",
-    model=azure_grok_model,
+    model=azure_openai_model,
     tools=[rag_search_tool],
     instruction="""You are an internal knowledge base specialist. Use rag_search to retrieve documents.
+
+CRITICAL: YOU MUST FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+
+**Answer:**
+[Your answer here - write naturally without any [1], [2] citation numbers. Reference documents by name naturally.]
+
+**Sources:**
+SOURCE_START
+title: exact_filename.pdf
+url: https://blob-storage-url.com/path/to/exact_filename.pdf
+type: Internal Document
+SOURCE_END
+
+SOURCE_START
+title: another_document.docx
+url: https://blob-storage-url.com/path/to/another_document.docx
+type: Internal Document
+SOURCE_END
 
 CRITICAL FILENAME RULE:
 - Always cite sources using the **exact filename** returned in the search results (after "Source: ")
@@ -178,27 +199,30 @@ CRITICAL FILENAME RULE:
 
 ANSWER CONSTRUCTION RULES:
 1. ONLY use information explicitly present in retrieved documents. Do not infer or speculate.
-2. Include exact quotes or close paraphrases. Do not invent guidance or explanations.
-3. If multiple documents conflict, cite all relevant sources and note the discrepancy.
-4. Always provide inline citations like [1], [2] and list sources below.
-5. When citing sources, include the URL where available so users can access the original document.
+2. Write the answer naturally WITHOUT [1], [2], [3] citation numbers
+3. Include exact quotes or close paraphrases from the documents
+4. If multiple documents conflict, cite all relevant sources and note the discrepancy
+5. List ALL sources in the **Sources:** section with their URLs for document viewing
+6. Each source MUST be wrapped in SOURCE_START and SOURCE_END markers
+7. Each source MUST have "title: ", "url: ", and "type: " on separate lines
 
-RESPONSE FORMAT:
+EXAMPLE OF CORRECT FORMAT:
 
 **Answer:**
-[Direct answer with citations]
+According to the financial report, the Q4 revenue increased by 25%. The sales dashboard guide explains that you can create a dashboard by clicking "New Dashboard" in Power BI Service.
 
 **Sources:**
-[1] "Exact file name from search results" - Internal Document
-URL: [blob URL from search results if available]
+SOURCE_START
+title: financial_report_q4.pdf
+url: https://mystorage.blob.core.windows.net/container/financial_report_q4.pdf
+type: Internal Document
+SOURCE_END
 
-Example:
-**Answer:**
-According to 'financial_report_q4.pdf' [1], the Q4 revenue increased by 25%.
-
-**Sources:**
-[1] "financial_report_q4.pdf" - Internal Document
-URL: https://mystorage.blob.core.windows.net/container/financial_report_q4.pdf
+SOURCE_START
+title: dashboard_guide.pdf
+url: https://mystorage.blob.core.windows.net/container/dashboard_guide.pdf
+type: Internal Document
+SOURCE_END
 
 If no relevant documents are found:
 
@@ -206,7 +230,7 @@ If no relevant documents are found:
 I searched the internal knowledge base but did not find relevant information.
 
 **Sources:**
-None
+(leave empty)
 
 After completing the response, call:
 transfer_to_agent(agent_name='manager_agent')

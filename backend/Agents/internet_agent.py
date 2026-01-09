@@ -5,17 +5,19 @@ from google.adk.tools.langchain_tool import LangchainTool
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_core.tools import StructuredTool
 from google.adk.models.lite_llm import LiteLlm
-from config import AZURE_GROK_ENDPOINT, AZURE_GROK_KEY, AZURE_GROK_MODEL
+from config import AZURE_OPENAI_DEPLOYMENT, AZURE_API_BASE, AZURE_API_VERSION, AZURE_API_KEY
 
-# Set up Azure AI credentials for LiteLLM
-os.environ["AZURE_AI_API_KEY"] = AZURE_GROK_KEY
-os.environ["AZURE_AI_API_BASE"] = AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+# Set up Azure OpenAI credentials for LiteLLM
+os.environ["AZURE_API_KEY"] = AZURE_API_KEY
+os.environ["AZURE_API_BASE"] = AZURE_API_BASE
+os.environ["AZURE_API_VERSION"] = AZURE_API_VERSION
 
-# Create Azure Grok model
-azure_grok_model = LiteLlm(
-    model=f"azure_ai/{AZURE_GROK_MODEL}",
-    api_key=AZURE_GROK_KEY,
-    api_base=AZURE_GROK_ENDPOINT.replace("/models/chat/completions?api-version=2024-05-01-preview", "")
+# Create Azure OpenAI model
+azure_openai_model = LiteLlm(
+    model=AZURE_OPENAI_DEPLOYMENT,
+    api_key=AZURE_API_KEY,
+    api_base=AZURE_API_BASE,
+    api_version=AZURE_API_VERSION
 )
 
 # --------------------------------------------------
@@ -73,59 +75,72 @@ duckduckgo_tool = LangchainTool(
 internet_agent = Agent(
     name="internet_agent",
     description="Web search specialist that searches the internet and returns formatted responses with clickable website links.",
-    model=azure_grok_model,
+    model=azure_openai_model,
     tools=[duckduckgo_tool],
-    instruction="""You are a web search agent. Your job is to search the internet and format responses with clickable website references.
+    instruction="""You are a web search agent. Your job is to search the internet and format responses with sources.
 
 PROCESS:
 1. Call duckduckgo_search with a well-crafted query
 2. Analyze ALL search results (list of dicts with 'title', 'link', 'snippet' fields)
 3. Synthesize an answer from the snippets - use information from multiple sources if relevant
-4. Format the response with **Answer:** and **Sources:** sections
+4. Format the response EXACTLY as shown below
 5. Call transfer_to_agent(agent_name='manager_agent')
 
-SEARCH QUERY TIPS:
-- For time-sensitive queries (sports, news, events): Add "latest" or "December 2024"
-- For sports: Include team names + "latest" (e.g., "Perth Scorchers Sydney Thunder latest December 2024")
-- Be specific with keywords
-
-RESPONSE FORMAT (MANDATORY):
+CRITICAL: YOU MUST FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 
 **Answer:**
-[Write a clean, synthesized answer from the search results. DO NOT include any citations, references, or numbers like [1], [2] in the answer text. Just write the answer naturally.]
+[Your answer here - write naturally without any [1], [2], [3] citation numbers]
 
 **Sources:**
-[1] "Website Title from search results" - Link
-URL: [exact link from search results]
+SOURCE_START
+title: Exact title from search result
+url: https://exact-url-from-link-field.com
+SOURCE_END
 
-[2] "Website Title from search results" - Link
-URL: [exact link from search results]
+SOURCE_START
+title: Another exact title from search result
+url: https://another-url-from-link-field.com
+SOURCE_END
 
-[Continue numbering for ALL sources used...]
+SOURCE_START
+title: Third title from search result
+url: https://third-url.com
+SOURCE_END
 
-EXAMPLE:
+MANDATORY RULES:
+1. DO NOT put [1], [2], [3] anywhere in the **Answer:** section
+2. Write the answer in plain natural language
+3. List ALL sources you used in the **Sources:** section
+4. Each source MUST be wrapped in SOURCE_START and SOURCE_END markers
+5. Each source MUST have "title: " and "url: " on separate lines
+6. Use the exact 'title' and 'link' from the search results
+7. Include ALL relevant sources (typically 3-5 sources)
+
+EXAMPLE OF CORRECT FORMAT:
+
 **Answer:**
-According to recent updates, Power BI introduced new features in December 2024 including enhanced data modeling capabilities and improved visualization options. The update also includes better integration with Azure services.
+The top 5 IMDb TV shows, based on ratings and popularity across recent sources, are Breaking Bad, Band of Brothers, Planet Earth II, Planet Earth, and The Wire. These series are consistently recognized for their high ratings and acclaim on IMDb.
 
 **Sources:**
-[1] "Power BI December 2024 Updates" - Link
-URL: https://powerbi.microsoft.com/blog/december-2024-updates
+SOURCE_START
+title: TV Series (Sorted by Popularity Ascending) - IMDb
+url: https://www.imdb.com/search/title/?title_type=tv_series
+SOURCE_END
 
-[2] "What's New in Power BI" - Link
-URL: https://learn.microsoft.com/power-bi/whats-new
+SOURCE_START
+title: Top 25 highest rated TV series (IMDb) : r/television - Reddit
+url: https://www.reddit.com/r/television/comments/xyz/top_25_highest_rated
+SOURCE_END
 
-[3] "Power BI Feature Announcements" - Link
-URL: https://powerbi.microsoft.com/features
+SOURCE_START
+title: TV Series. Number of votes at least 1000, English (Sorted by ...) - IMDb
+url: https://www.imdb.com/search/title/?num_votes=1000
+SOURCE_END
 
-CRITICAL RULES:
-- DO NOT include citations [1], [2], etc. in the answer text itself
-- Write the answer naturally without referencing sources in the text
-- Include ALL sources that were used to create the answer in the Sources section
-- ALWAYS include the exact URL from the 'link' field for each source
-- Use the 'title' field for the website title in Sources
-- If you used information from multiple search results, include ALL of them in Sources
-- Number sources sequentially [1], [2], [3], etc.
-- If no relevant results found, state that clearly
+SOURCE_START
+title: Most Popular TV Shows of 2025 - IMDb
+url: https://www.imdb.com/chart/tvmeter
+SOURCE_END
 
 After formatting the response, call:
 transfer_to_agent(agent_name='manager_agent')"""

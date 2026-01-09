@@ -32,64 +32,83 @@ def extract_sources_and_citations(response_text: str) -> Tuple[str, List[Dict], 
         }
         citations.append(citation)
     
-    # Pattern 2: Extract "Sources:" sections with format: [1] "Title" - URL or [1] "Title" - Type
-    # This matches both internet_agent and rag_agent/community_agent output formats
-    # Also capture URLs that appear after source lines (URL: https://...)
-    sources_section_pattern = r'\*\*Sources:\*\*\s*\n((?:\[\d+\][^\n]+\n?(?:URL:\s*[^\n]+\n?)?)+)'
-    sources_match = re.search(sources_section_pattern, response_text, re.MULTILINE | re.IGNORECASE)
+    # Pattern 2: Extract "Sources:" sections with SOURCE_START/SOURCE_END markers (new format)
+    # Format: SOURCE_START\ntitle: ...\nurl: ...\ntype: ...\nSOURCE_END
+    source_marker_pattern = r'SOURCE_START\s*\ntitle:\s*([^\n]+)\s*\nurl:\s*(https?://[^\s\n]+)\s*(?:\ntype:\s*([^\n]+))?\s*\nSOURCE_END'
+    source_marker_matches = re.findall(source_marker_pattern, response_text, re.MULTILINE | re.IGNORECASE)
     
-    if sources_match:
-        sources_text = sources_match.group(1)
-        # Remove the entire sources section (including URLs) from the main response
-        cleaned_response = re.sub(r'\*\*Sources:\*\*\s*\n(?:\[\d+\][^\n]+\n?(?:URL:\s*[^\n]+\n?)?)+', '', cleaned_response, flags=re.MULTILINE | re.IGNORECASE).strip()
+    if source_marker_matches:
+        # Remove the entire sources section from the cleaned response
+        cleaned_response = re.sub(r'\*\*Sources:\*\*.*?(?=transfer_to_agent|$)', '', cleaned_response, flags=re.DOTALL | re.IGNORECASE).strip()
         
-        # Parse individual source lines: [1] "Title" - URL or [1] "Title" - Type
-        # First try to match URLs
-        source_line_pattern_url = r'\[(\d+)\]\s*"([^"]+)"\s*-\s*(https?://[^\s]+)'
-        source_matches_url = re.findall(source_line_pattern_url, sources_text)
-        
-        for num, title, url in source_matches_url:
+        for i, (title, url, doc_type) in enumerate(source_marker_matches, 1):
             source = {
-                "id": f"source_{num}",
+                "id": f"source_{i}",
                 "title": title.strip(),
                 "url": url.strip(),
                 "domain": urlparse(url).netloc,
-                "type": "web"
+                "type": doc_type.strip() if doc_type else "web"
             }
             sources.append(source)
+    
+    # Pattern 2b: Extract "Sources:" sections with format: [1] "Title" - URL or [1] "Title" - Type (old format)
+    # This matches both internet_agent and rag_agent/community_agent output formats
+    # Also capture URLs that appear after source lines (URL: https://...)
+    # IMPORTANT: Search in original response_text, not cleaned_response
+    # Handle blank lines between sources (\n\n)
+    if not sources:
+        sources_section_pattern = r'\*\*Sources:\*\*\s*\n((?:\s*\[\d+\][^\n]+\n+(?:URL:\s*[^\n]+\n*)?)+)'
+        sources_match = re.search(sources_section_pattern, response_text, re.MULTILINE | re.IGNORECASE)
         
-        # Then try to match file/document types (Internal Document, Community Discussion, etc.)
-        # Also check for URLs on the next line (URL: https://...)
-        source_line_pattern_file = r'\[(\d+)\]\s*"([^"]+)"\s*-\s*([^http\n][^\n]*)'
-        source_matches_file = re.findall(source_line_pattern_file, sources_text)
+        if sources_match:
+            sources_text = sources_match.group(1)
+            # Remove the entire sources section (including URLs) from the main response
+            # This regex removes **Sources:** and everything after it until transfer_to_agent or end of string
+            cleaned_response = re.sub(r'\*\*Sources:\*\*\s*\n(?:\s*\[\d+\][^\n]+\n+(?:URL:\s*[^\n]+\n*)?)+', '', cleaned_response, flags=re.MULTILINE | re.IGNORECASE).strip()
+            
+            # Parse individual source lines: [1] "Title" - Type followed by URL: https://... on next line
+            # Format: [1] "Title" - Link\nURL: https://... or [1] "Title" - Collider\nURL: https://...
+            # We need to match each [num] block including its URL line
+            # Handle optional extra newlines between source number and URL
+            source_block_pattern = r'\[(\d+)\]\s*"([^"]+)"\s*-\s*([^\n]+)\s*\n+\s*URL:\s*(https?://[^\s\n]+)'
+            source_blocks = re.findall(source_block_pattern, sources_text, re.MULTILINE)
+            
+            for num, title, doc_type, url in source_blocks:
+                source = {
+                    "id": f"source_{num}",
+                    "title": title.strip(),
+                    "url": url.strip(),
+                    "domain": urlparse(url).netloc,
+                    "type": "web"  # Internet sources are web type
+                }
+                sources.append(source)
+    
+    # Pattern 2c: Handle inline sources format (when agent doesn't follow proper formatting)
+    # Format: **Sources:** "Title" - Link URL: https://... "Title2" - Link URL: https://...
+    # This is a fallback for when the agent puts everything on one or few lines without [1], [2] numbering
+    if not sources:
+        inline_sources_pattern = r'\*\*Sources:\*\*\s*(.+?)(?:transfer_to_agent|$)'
+        inline_match = re.search(inline_sources_pattern, response_text, re.DOTALL | re.IGNORECASE)
         
-        for num, title, doc_type in source_matches_file:
-            # Skip if already added as URL
-            if any(s.get('id') == f"source_{num}" for s in sources):
-                continue
+        if inline_match:
+            sources_text = inline_match.group(1)
+            # Remove the entire sources section from the main response
+            cleaned_response = re.sub(r'\*\*Sources:\*\*\s*.+?(?=transfer_to_agent|$)', '', cleaned_response, flags=re.DOTALL | re.IGNORECASE).strip()
             
-            # Check if there's a URL on the next line for this source
-            # Pattern: [num] ... followed by URL: https://... (can be on same line or next line)
-            # Look for URL: pattern after this source line
-            url_pattern = rf'\[{num}\][^\n]*(?:\n[^\[]*)?URL:\s*(https?://[^\s\n\[\]]+)'
-            url_match = re.search(url_pattern, sources_text, re.MULTILINE | re.IGNORECASE | re.DOTALL)
-            blob_url = None
-            if url_match:
-                blob_url = url_match.group(1).strip()
+            # Extract inline sources: "Title" - Link URL: https://...
+            # Pattern matches: "Title" - Link URL: https://url or "Title" - Link\nURL: https://url
+            inline_source_pattern = r'"([^"]+)"\s*-\s*Link\s*(?:\n\s*)?URL:\s*(https?://[^\s]+)'
+            inline_matches = re.findall(inline_source_pattern, sources_text, re.IGNORECASE)
             
-            source = {
-                "id": f"source_{num}",
-                "title": title.strip(),
-                "type": "file",
-                "doc_type": doc_type.strip(),  # e.g., "Internal Document", "Community Discussion"
-            }
-            
-            # Add URL if found
-            if blob_url and blob_url != 'URL not available':
-                source["url"] = blob_url
-                source["path"] = blob_url  # Also set path for frontend compatibility
-            
-            sources.append(source)
+            for i, (title, url) in enumerate(inline_matches, 1):
+                source = {
+                    "id": f"source_{i}",
+                    "title": title.strip(),
+                    "url": url.strip(),
+                    "domain": urlparse(url).netloc,
+                    "type": "web"
+                }
+                sources.append(source)
     
     # Pattern 3: Fallback - Extract "Sources:" sections (more flexible matching for other formats)
     if not sources:
@@ -220,7 +239,16 @@ def extract_sources_and_citations(response_text: str) -> Tuple[str, List[Dict], 
     # Remove CHUNK_META lines from the cleaned response
     cleaned_response = re.sub(r'\n\s*CHUNK_META:\s*[^\n]+', '', cleaned_response, flags=re.IGNORECASE | re.MULTILINE)
     
+    # Remove transfer_to_agent() calls that might appear at the end
+    cleaned_response = re.sub(r'\s*transfer_to_agent\([^)]+\)\s*$', '', cleaned_response, flags=re.IGNORECASE)
+    
+    # Remove any citation numbers like [1], [2], [3] from the answer text
+    # These should only appear in the Sources section (which we've already removed), not in the answer
+    # Do this AFTER extracting sources so we don't break the source extraction
+    cleaned_response = re.sub(r'\s*\[\d+\]\s*', ' ', cleaned_response)
+    
     # Clean up extra whitespace and newlines
+    cleaned_response = re.sub(r'\s+', ' ', cleaned_response)  # Clean up extra spaces
     cleaned_response = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_response)
     cleaned_response = cleaned_response.strip()
     
