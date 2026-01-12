@@ -1,0 +1,8 @@
+command: ['node', 'server.js']
+env:
+  - name: 'APP_ENV'
+    value: 'prod'
+  - name: 'STATIC_ROOT'
+    value: 'dist'
+  - name: 'PORT'
+    value: '8000'
