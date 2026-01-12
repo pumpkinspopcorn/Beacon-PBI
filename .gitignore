@@ -3,7 +3,7 @@ node_modules/
 bun.lockb
 
 # Build outputs
-dist/
+# dist/  # Commented out to include dist folder in git
 dist-ssr/
 *.local
 
