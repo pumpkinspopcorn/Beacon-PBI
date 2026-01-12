@@ -83,6 +83,25 @@ function ObservabilityDashboard() {
   const inputCost = summary.total_cost_usd * (summary.total_tokens_input / totalTokensSafe);
   const outputCost = summary.total_cost_usd * (summary.total_tokens_output / totalTokensSafe);
 
+  // Normalize recent request success based on agent responses (backend failures surface as failed)
+  const normalizedRecentRequests = (recentData ?? stats?.recent_requests ?? []).map((request) => {
+    const normalizedSuccess = !!request.success && !request.error;
+    return { ...request, success: normalizedSuccess };
+  });
+
+  const recentSuccessCount = normalizedRecentRequests.filter((request) => request.success).length;
+  const recentFailureCount = normalizedRecentRequests.length - recentSuccessCount;
+  const recentSuccessRate = normalizedRecentRequests.length > 0
+    ? (recentSuccessCount / normalizedRecentRequests.length) * 100
+    : summary.success_rate;
+
+  const requestTotals = {
+    total: summary.total_requests || normalizedRecentRequests.length,
+    success: normalizedRecentRequests.length > 0 ? recentSuccessCount : summary.successful_requests,
+    failure: normalizedRecentRequests.length > 0 ? recentFailureCount : summary.failed_requests,
+    rate: recentSuccessRate,
+  };
+
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full bg-gradient-to-b from-background via-muted/20 to-background">
@@ -127,9 +146,9 @@ function ObservabilityDashboard() {
                     <Activity className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{formatNumber(summary.total_requests)}</div>
+                    <div className="text-2xl font-bold">{formatNumber(requestTotals.total)}</div>
                     <p className="text-xs text-muted-foreground">
-                      {summary.successful_requests} successful, {summary.failed_requests} failed
+                      {requestTotals.success} successful, {requestTotals.failure} failed
                     </p>
                   </CardContent>
                 </Card>
@@ -183,7 +202,7 @@ function ObservabilityDashboard() {
                   <CardContent>
                     <div className="text-2xl font-bold">{formatTime(summary.average_latency_ms)}</div>
                     <p className="text-xs text-muted-foreground">
-                      Success rate: {summary.success_rate.toFixed(1)}%
+                      Success rate: {requestTotals.rate.toFixed(1)}%
                     </p>
                   </CardContent>
                 </Card>
@@ -248,14 +267,14 @@ function ObservabilityDashboard() {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">Success Rate</span>
-                            <Badge variant={summary.success_rate >= 95 ? "default" : "secondary"}>
-                              {summary.success_rate.toFixed(1)}%
+                            <Badge variant={requestTotals.rate >= 95 ? "default" : "secondary"}>
+                              {requestTotals.rate.toFixed(1)}%
                             </Badge>
                           </div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden">
                             <div
                               className="h-full bg-primary"
-                              style={{ width: `${summary.success_rate}%` }}
+                              style={{ width: `${requestTotals.rate}%` }}
                             />
                           </div>
                         </div>
@@ -411,8 +430,8 @@ function ObservabilityDashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {recentData && recentData.length > 0 ? (
-                            recentData
+                          {normalizedRecentRequests && normalizedRecentRequests.length > 0 ? (
+                            normalizedRecentRequests
                               .slice()
                               .reverse()
                               .map((request, index) => (

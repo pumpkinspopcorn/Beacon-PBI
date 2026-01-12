@@ -5,6 +5,41 @@ import { getConversations } from "./chatHistory";
 const OBSERVABILITY_STORAGE_KEY = "pbi-observability-stats";
 const RECENT_REQUESTS_STORAGE_KEY = "pbi-recent-requests";
 
+const ERROR_PHRASES = [
+  "unable to connect to the backend",
+  "unable to connect to the backend server",
+  "backend server",
+  "failed to",
+  "error",
+  "exception",
+  "timeout",
+  "apologize",
+  "please try again",
+];
+
+// Normalize success based on whether the agent actually produced a valid response
+const evaluateResponseSuccess = (
+  response: string | undefined,
+  requestedSuccess: boolean,
+): { success: boolean; errorReason?: string } => {
+  if (!requestedSuccess) {
+    return { success: false, errorReason: response || "Agent did not return a response" };
+  }
+
+  const trimmed = response?.trim();
+  if (!trimmed) {
+    return { success: false, errorReason: "Agent did not return a response" };
+  }
+
+  const normalized = trimmed.toLowerCase();
+  const isErrorLike = ERROR_PHRASES.some((phrase) => normalized.includes(phrase));
+  if (isErrorLike) {
+    return { success: false, errorReason: trimmed };
+  }
+
+  return { success: true };
+};
+
 // Initialize default stats
 const getDefaultStats = (): ObservabilityStats => ({
   summary: {
@@ -36,22 +71,6 @@ export const loadObservabilityStats = (): ObservabilityStats => {
     }
   } catch (error) {
     console.warn("Failed to load observability stats from localStorage:", error);
-  }
-
-  // If no stats exist, try to populate from chat history
-  const conversations = getConversations();
-  if (conversations.length > 0) {
-    console.log(`Found ${conversations.length} chat conversations, populating observability stats...`);
-    populateStatsFromChatHistory();
-    // Try loading again after population
-    try {
-      const stored = localStorage.getItem(OBSERVABILITY_STORAGE_KEY);
-      if (stored) {
-        return { ...getDefaultStats(), ...JSON.parse(stored) };
-      }
-    } catch (error) {
-      console.warn("Failed to load populated observability stats:", error);
-    }
   }
 
   return getDefaultStats();
@@ -106,13 +125,16 @@ export const recordChatRequest = (
   outputTokens: number = Math.floor(Math.random() * 200) + 100 // Random output tokens
 ): void => {
   console.log('[OBSERVABILITY] Recording chat request:', { question: question.substring(0, 50), success, latencyMs, inputTokens, outputTokens });
-  
+
   const stats = loadObservabilityStats();
   const requests = loadRecentRequests(100);
 
+  const { success: computedSuccess, errorReason } = evaluateResponseSuccess(response, success);
+  const safeOutputTokens = computedSuccess ? outputTokens : 0;
+
   // Update summary stats
   stats.summary.total_requests += 1;
-  if (success) {
+  if (computedSuccess) {
     stats.summary.successful_requests += 1;
   } else {
     stats.summary.failed_requests += 1;
@@ -120,12 +142,12 @@ export const recordChatRequest = (
   stats.summary.success_rate = (stats.summary.successful_requests / stats.summary.total_requests) * 100;
 
   stats.summary.total_tokens_input += inputTokens;
-  stats.summary.total_tokens_output += outputTokens;
-  stats.summary.total_tokens += inputTokens + outputTokens;
+  stats.summary.total_tokens_output += safeOutputTokens;
+  stats.summary.total_tokens += inputTokens + safeOutputTokens;
 
   // Simulate cost calculation (rough estimate: $0.0015 per 1K tokens for input, $0.002 per 1K tokens for output)
-  const inputCost = (inputTokens / 1000) * 0.0015;
-  const outputCost = (outputTokens / 1000) * 0.002;
+  const inputCost = computedSuccess ? (inputTokens / 1000) * 0.0015 : 0;
+  const outputCost = computedSuccess ? (safeOutputTokens / 1000) * 0.002 : 0;
   const totalCost = inputCost + outputCost;
   stats.summary.total_cost_usd += totalCost;
 
@@ -147,8 +169,8 @@ export const recordChatRequest = (
   }
   stats.by_model[model].requests += 1;
   stats.by_model[model].tokens_input += inputTokens;
-  stats.by_model[model].tokens_output += outputTokens;
-  stats.by_model[model].tokens_total += inputTokens + outputTokens;
+  stats.by_model[model].tokens_output += safeOutputTokens;
+  stats.by_model[model].tokens_total += inputTokens + safeOutputTokens;
   stats.by_model[model].cost_usd += totalCost;
 
   const modelTotalLatency = stats.by_model[model].average_latency_ms * (stats.by_model[model].requests - 1) + latencyMs;
@@ -159,11 +181,12 @@ export const recordChatRequest = (
     timestamp: new Date().toISOString(),
     model,
     input_tokens: inputTokens,
-    output_tokens: outputTokens,
-    total_tokens: inputTokens + outputTokens,
+    output_tokens: safeOutputTokens,
+    total_tokens: inputTokens + safeOutputTokens,
     cost: totalCost,
     latency_ms: latencyMs,
-    success,
+    success: computedSuccess,
+    error: errorReason,
     user_id: "web_user",
     session_id: "web_session_001",
     agent_name: "pbi-beacon",
@@ -207,19 +230,22 @@ export const populateStatsFromChatHistory = (): void => {
   const requests: RecentRequest[] = [];
 
   conversations.forEach((conversation, convIndex) => {
-    // Each conversation represents multiple requests (user messages)
-    const userMessages = conversation.messages.filter(msg => msg.role === 'user');
+    conversation.messages.forEach((message, msgIndex) => {
+      if (message.role !== 'user') return;
 
-    userMessages.forEach((message, msgIndex) => {
+      const assistantReply = conversation.messages.slice(msgIndex + 1).find(msg => msg.role === 'assistant');
+      const responseText = assistantReply?.content;
+      const { success } = evaluateResponseSuccess(responseText, true);
+
       // Generate realistic token counts based on message length
       const inputTokens = Math.max(50, Math.floor(message.content.length / 4) + Math.floor(Math.random() * 50));
-      const outputTokens = Math.max(100, Math.floor(inputTokens * 0.8) + Math.floor(Math.random() * 100));
+      const outputTokens = success ? Math.max(100, Math.floor(inputTokens * 0.8) + Math.floor(Math.random() * 100)) : 0;
       const totalTokens = inputTokens + outputTokens;
 
-      // Calculate costs
+      // Calculate costs (only when we have a valid agent response)
       const inputCost = (inputTokens / 1000) * 0.0015;
       const outputCost = (outputTokens / 1000) * 0.002;
-      const totalCost = inputCost + outputCost;
+      const totalCost = success ? inputCost + outputCost : 0;
 
       // Generate realistic latency
       const latencyMs = Math.floor(Math.random() * 2000) + 500;
@@ -233,7 +259,8 @@ export const populateStatsFromChatHistory = (): void => {
         total_tokens: totalTokens,
         cost: totalCost,
         latency_ms: latencyMs,
-        success: true,
+        success,
+        error: success ? undefined : responseText || "Agent did not return a response",
         user_id: "web_user",
         session_id: `session_${conversation.id}`,
         agent_name: "pbi-beacon",
@@ -243,11 +270,37 @@ export const populateStatsFromChatHistory = (): void => {
 
       // Update summary stats
       stats.summary.total_requests += 1;
-      stats.summary.successful_requests += 1;
+      if (success) {
+        stats.summary.successful_requests += 1;
+      } else {
+        stats.summary.failed_requests += 1;
+      }
       stats.summary.total_tokens_input += inputTokens;
       stats.summary.total_tokens_output += outputTokens;
       stats.summary.total_tokens += totalTokens;
       stats.summary.total_cost_usd += totalCost;
+
+      // Update by_model stats (aligns with how recordChatRequest stores tokens)
+      if (!stats.by_model["gpt-4"]) {
+        stats.by_model["gpt-4"] = {
+          requests: 0,
+          tokens_input: 0,
+          tokens_output: 0,
+          tokens_total: 0,
+          cost_usd: 0,
+          average_latency_ms: 0,
+        };
+      }
+
+      const modelStats = stats.by_model["gpt-4"];
+      modelStats.requests += 1;
+      modelStats.tokens_input += inputTokens;
+      modelStats.tokens_output += outputTokens;
+      modelStats.tokens_total += totalTokens;
+      modelStats.cost_usd += totalCost;
+
+      const modelTotalLatency = modelStats.average_latency_ms * (modelStats.requests - 1) + latencyMs;
+      modelStats.average_latency_ms = modelTotalLatency / modelStats.requests;
     });
   });
 
@@ -256,17 +309,6 @@ export const populateStatsFromChatHistory = (): void => {
   stats.summary.average_latency_ms = requests.length > 0
     ? requests.reduce((sum, req) => sum + req.latency_ms, 0) / requests.length
     : 0;
-
-  // Update by_model stats
-  const model = "gpt-4";
-  stats.by_model[model] = {
-    requests: stats.summary.total_requests,
-    tokens_input: stats.summary.total_tokens_input,
-    tokens_output: stats.summary.total_tokens_output,
-    tokens_total: stats.summary.total_tokens,
-    cost_usd: stats.summary.total_cost_usd,
-    average_latency_ms: stats.summary.average_latency_ms,
-  };
 
   // Add recent requests (skip for historical data - only real API calls should appear in recent requests)
   // stats.recent_requests = requests.slice(-50); // Commented out for historical data

@@ -3,10 +3,14 @@ import { useMutation } from "@tanstack/react-query";
 import { askQuestion, clearHistory } from "@/lib/api";
 import { Message } from "@/types/powerbi-chat";
 import { toast } from "sonner";
-import { getCurrentConversationId, setCurrentConversationId, updateMessages, getConversationById } from "@/lib/chatHistory";
+import { subscribe, setCurrentConversationId, updateMessages, getConversationById, getCurrentConversationId, getConversations } from "@/lib/chatHistory";
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function generateConversationId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 // Demo data removed - starting with empty chat
@@ -15,23 +19,51 @@ export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]); // Start with empty chat
   const [isTyping, setIsTyping] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [conversationId, setConversationId] = useState<string>(() => getCurrentConversationId() || `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+  const [conversationId, setConversationId] = useState<string>(() => generateConversationId());
 
   // Auto-create new chat on first load
   useEffect(() => {
-    if (!isInitialized) {
-      // Ensure we start with empty messages
-      const existing = getConversationById(conversationId);
-      setMessages(existing?.messages ?? []);
-      setIsInitialized(true);
-      setCurrentConversationId(conversationId);
-      
-      // Show a toast to indicate new chat is ready
+    if (isInitialized) return;
+
+    const storedId = getCurrentConversationId();
+    const storedConversation = storedId ? getConversationById(storedId) : undefined;
+    const allConversations = getConversations();
+
+    if (storedConversation) {
+      setConversationId(storedId!);
+      setMessages(storedConversation.messages ?? []);
+    } else if (allConversations.length > 0) {
+      const existing = allConversations[0];
+      setConversationId(existing.id);
+      setMessages(existing.messages ?? []);
+      setCurrentConversationId(existing.id);
+    } else {
+      const newId = conversationId || generateConversationId();
+      setConversationId(newId);
+      setMessages([]);
+      setCurrentConversationId(newId);
       setTimeout(() => {
         toast.success("New chat session ready! Ask me anything.");
       }, 500);
     }
-  }, [isInitialized]);
+
+    setIsInitialized(true);
+  }, [conversationId, isInitialized]);
+
+  // React to conversation changes triggered elsewhere (e.g., sidebar selection)
+  useEffect(() => {
+    const unsubscribe = subscribe((_, currentId) => {
+      if (!currentId) return;
+      setConversationId((prev) => {
+        if (prev === currentId) return prev;
+        const existing = getConversationById(currentId);
+        setMessages(existing?.messages ?? []);
+        return currentId;
+      });
+    });
+
+    return unsubscribe;
+  }, []);
 
   // Persist messages to chat history on change
   useEffect(() => {

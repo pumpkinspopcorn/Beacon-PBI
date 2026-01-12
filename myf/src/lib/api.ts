@@ -38,6 +38,14 @@ export interface AskQuestionResponse {
  * Sends a question to the backend agent.
  */
 export async function askQuestion(question: string): Promise<AskQuestionResponse> {
+  let alreadyRecorded = false;
+
+  const recordOnce = (resp: string | undefined, ok: boolean) => {
+    if (alreadyRecorded) return;
+    recordChatRequest(question, resp, ok);
+    alreadyRecorded = true;
+  };
+
   try {
     const response = await fetch(`${API_BASE_URL}/ask`, {
       method: "POST",
@@ -53,10 +61,7 @@ export async function askQuestion(question: string): Promise<AskQuestionResponse
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
-      // Record the failed request for observability
-      recordChatRequest(question, undefined, false);
-      
+      recordOnce(undefined, false);
       throw new Error(errorData.detail || "Failed to get response from agent");
     }
 
@@ -90,24 +95,19 @@ export async function askQuestion(question: string): Promise<AskQuestionResponse
 
     if (isErrorResponse) {
       console.log('[API] Recording as FAILED request due to error response');
-      // Record the failed request for observability
-      recordChatRequest(question, data.answer || "Backend error", false);
+      recordOnce(data.answer || "Backend error", false);
       throw new Error(data.error || "Backend returned an error response");
     }
 
     console.log('[API] Recording as SUCCESSFUL request');
-    // Record the successful request for observability
-    recordChatRequest(question, data.answer, true);
+    recordOnce(data.answer, true);
 
     return data;
   } catch (error) {
     // Handle network errors (backend not available)
     console.error('Network error or backend unavailable:', error);
     console.log('[API] Recording as FAILED request due to network error');
-    
-    // Record the failed request for observability
-    recordChatRequest(question, undefined, false);
-    
+    recordOnce(undefined, false);
     // Re-throw the error so it can be handled by the caller
     throw error;
   }
