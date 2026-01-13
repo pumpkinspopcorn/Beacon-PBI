@@ -505,7 +505,7 @@ export default function PowerBIChatPage() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -320, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={cn('hidden lg:block border-r border-slate-200 flex-shrink-0 mt-16', sidebarHover ? 'w-80' : 'w-14')}
+            className={cn('hidden lg:block border-r border-slate-200 flex-shrink-0 mt-20', sidebarHover ? 'w-80' : 'w-14')}
           >
             <PowerBISidebar
               conversations={conversations}
@@ -536,25 +536,25 @@ export default function PowerBIChatPage() {
       </Sheet>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col pt-16">
+      <div className="flex-1 flex flex-col pt-20">
         {/* Header */}
-        <div className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-slate-200 flex items-center justify-between px-4 bg-white shadow-sm dark:bg-slate-900">
-          <div className="flex items-center gap-4">
+        <div className="fixed top-0 left-0 right-0 z-50 h-20 border-b border-slate-200 flex items-center justify-between px-6 bg-white shadow-sm dark:bg-slate-900">
+          <div className="flex items-center gap-6">
             {/* Tetra Pak Logo */}
-            <img src={TetraLogo} alt="Tetra Pak" className="h-6 w-auto object-contain" />
+            <img src={TetraLogo} alt="Tetra Pak" className="h-12 w-auto object-contain" />
             
             {/* Vertical line separator */}
-            <div className="h-8 w-0.5 bg-slate-300 dark:bg-slate-600" />
+            <div className="h-12 w-0.5 bg-slate-300 dark:bg-slate-600" />
             
-            {/* Our Logo - slightly left of text */}
-            <img src={OurLogo} alt="Logo" className="h-8 w-auto object-contain" />
+            {/* Our Logo - Same size as Tetra Pak logo */}
+            <img src={OurLogo} alt="Logo" className="h-12 w-auto object-contain" />
             
             {/* Text content - stacked vertically */}
             <div className="flex flex-col">
-              <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100 leading-tight">
+              <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100 leading-tight">
                 PBI Beacon
               </h1>
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-tight">
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-tight">
                 Intelligent PowerBI Assistant
               </p>
             </div>

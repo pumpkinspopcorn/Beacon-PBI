@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { getObservabilityStats, getRecentRequests, resetObservabilityStats } from "@/lib/api";
 import { ObservabilityStats } from "@/types/chat";
-import { Activity, DollarSign, Clock, RefreshCw, AlertCircle, CheckCircle2, Zap, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { Activity, DollarSign, Clock, RefreshCw, AlertCircle, CheckCircle2, Zap, ArrowDownCircle, ArrowUpCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 

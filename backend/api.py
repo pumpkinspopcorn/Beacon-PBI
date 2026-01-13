@@ -77,6 +77,9 @@ async def ask_question(request: QuestionRequest):
         )
 
         final_response_text = ""
+        all_event_responses = []  # Collect all event responses
+        all_sources = []  # Collect sources from all events
+        all_citations = []  # Collect citations from all events
         
         # Run the agent and capture token usage from events
         async for event in runner.run_async(
@@ -93,10 +96,27 @@ async def ask_question(request: QuestionRequest):
                 total_completion_tokens += completion_tokens
                 print(f"[ADK Event] Token usage - prompt: {prompt_tokens}, completion: {completion_tokens}")
             
+            # Collect ALL event responses (including from sub-agents)
+            if event.content and event.content.parts and event.content.parts[0].text:
+                event_text = event.content.parts[0].text
+                all_event_responses.append(event_text)
+                
+                # Extract sources from this event (could be from sub-agent)
+                if "**Sources:**" in event_text or "SOURCE_START" in event_text:
+                    print(f"[API] Event has sources, extracting...")
+                    _, event_sources, event_citations = extract_sources_and_citations(event_text)
+                    if event_sources:
+                        print(f"[API] ✓ Extracted {len(event_sources)} sources from event")
+                        all_sources.extend(event_sources)
+                    if event_citations:
+                        print(f"[API] ✓ Extracted {len(event_citations)} citations from event")
+                        all_citations.extend(event_citations)
+            
             if event.is_final_response():
                 if event.content and event.content.parts:
                     final_response_text = event.content.parts[0].text
-                    break
+                    print(f"[API] Final response from manager ({len(final_response_text)} chars)")
+                break
 
         if not final_response_text:
             raise HTTPException(status_code=500, detail="Agent failed to produce a response")
@@ -136,18 +156,35 @@ async def ask_question(request: QuestionRequest):
         )
         print(f"[API] ✓ Tracked request: {input_tokens} in / {output_tokens} out / {latency_ms:.0f}ms")
 
-        # Extract sources and citations from the response
-        cleaned_response, sources, citations = extract_sources_and_citations(final_response_text)
-        formatted_sources = format_sources_for_display(sources, citations)
+        # Use the final response text for the answer (manager's cleaned response)
+        # But use sources collected from ALL events (including sub-agents)
+        print(f"[API] Processing final response and collected sources")
+        print(f"[API] Final response length: {len(final_response_text)} chars")
+        print(f"[API] Sources collected from events: {len(all_sources)}")
+        print(f"[API] Citations collected from events: {len(all_citations)}")
         
+        # Clean the final response (remove any remaining source markers)
+        cleaned_response, _, _ = extract_sources_and_citations(final_response_text)
+        
+        # Format the sources we collected from all events
+        formatted_sources = format_sources_for_display(all_sources, all_citations)
+        
+        print(f"[API] Extraction results:")
+        print(f"  - Sources found: {len(all_sources)}")
+        print(f"  - Citations found: {len(all_citations)}")
+        print(f"  - Formatted sources: {len(formatted_sources)}")
         if formatted_sources:
-            print(f"[API] ✓ Extracted {len(formatted_sources)} sources from response")
+            print(f"[API] ✓ Formatted {len(formatted_sources)} sources for display")
+            for i, src in enumerate(formatted_sources, 1):
+                print(f"    {i}. {src.get('name')} - {src.get('type')}")
+        else:
+            print(f"[API] ⚠️  No sources to display!")
 
         return QuestionResponse(
             answer=cleaned_response,
             session_id=request.session_id,
             sources=formatted_sources,
-            citations=citations
+            citations=all_citations
         )
 
     except Exception as e:
@@ -282,6 +319,57 @@ async def reset_observability_statistics():
         return {"message": "Observability statistics reset successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to reset observability stats: {str(e)}")
+
+@app.get("/api/observability/pricing")
+async def get_pricing_info():
+    """Get current pricing information for all tracked models."""
+    try:
+        from observability import observability_tracker
+        
+        # Get unique models from tracked requests
+        stats = get_observability_stats()
+        models = list(stats.get("by_model", {}).keys())
+        
+        pricing_info = {}
+        for model in models:
+            # Try to get pricing from LiteLLM
+            try:
+                import litellm
+                input_cost, output_cost = litellm.cost_per_token(
+                    model=model,
+                    prompt_tokens=1_000_000,
+                    completion_tokens=1_000_000
+                )
+                pricing_info[model] = {
+                    "input_per_1M": input_cost,
+                    "output_per_1M": output_cost,
+                    "source": "litellm"
+                }
+            except Exception:
+                # Check cache
+                with observability_tracker._pricing_cache_lock:
+                    if model in observability_tracker._pricing_cache:
+                        cached = observability_tracker._pricing_cache[model]
+                        pricing_info[model] = {
+                            "input_per_1M": cached["input"],
+                            "output_per_1M": cached["output"],
+                            "source": cached.get("source", "cache"),
+                            "last_updated": cached.get("last_updated", "unknown")
+                        }
+                    else:
+                        pricing_info[model] = {
+                            "input_per_1M": 2.00,
+                            "output_per_1M": 8.00,
+                            "source": "fallback_estimate",
+                            "warning": "No pricing data available. Using conservative estimate."
+                        }
+        
+        return {
+            "pricing": pricing_info,
+            "note": "Pricing is fetched dynamically from LiteLLM's database. Update with: pip install --upgrade litellm"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get pricing info: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

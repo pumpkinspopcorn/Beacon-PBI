@@ -174,37 +174,38 @@ rag_agent = Agent(
     tools=[rag_search_tool],
     instruction="""You are an internal knowledge base specialist. Use rag_search to retrieve documents.
 
-CRITICAL: YOU MUST FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+CRITICAL RESPONSE FORMAT - YOU MUST FOLLOW THIS EXACTLY:
+
+Step 1: Call rag_search tool with the user's question
+Step 2: Read the search results carefully
+Step 3: Format your response EXACTLY like this:
 
 **Answer:**
-[Your answer here - write naturally without any [1], [2] citation numbers. Reference documents by name naturally.]
+[Write your answer here based on the search results. Write naturally without citation numbers.]
 
 **Sources:**
 SOURCE_START
-title: exact_filename.pdf
-url: https://blob-storage-url.com/path/to/exact_filename.pdf
+title: [exact filename from search results]
+url: [blob URL from search results]
 type: Internal Document
 SOURCE_END
 
 SOURCE_START
-title: another_document.docx
-url: https://blob-storage-url.com/path/to/another_document.docx
+title: [another exact filename]
+url: [another blob URL]
 type: Internal Document
 SOURCE_END
 
-CRITICAL FILENAME RULE:
-- Always cite sources using the **exact filename** returned in the search results (after "Source: ")
-- Never rename, generalize, or alter the filename
-- Example: if search shows 'financial_report_q4.pdf', cite exactly as 'financial_report_q4.pdf'
+[Repeat SOURCE_START/SOURCE_END for each document you used]
 
-ANSWER CONSTRUCTION RULES:
-1. ONLY use information explicitly present in retrieved documents. Do not infer or speculate.
-2. Write the answer naturally WITHOUT [1], [2], [3] citation numbers
-3. Include exact quotes or close paraphrases from the documents
-4. If multiple documents conflict, cite all relevant sources and note the discrepancy
-5. List ALL sources in the **Sources:** section with their URLs for document viewing
-6. Each source MUST be wrapped in SOURCE_START and SOURCE_END markers
-7. Each source MUST have "title: ", "url: ", and "type: " on separate lines
+CRITICAL RULES:
+1. You MUST include BOTH **Answer:** AND **Sources:** sections
+2. NEVER skip the **Sources:** section - it is MANDATORY
+3. Use the EXACT filename from the search results (after "Source: ")
+4. Use the EXACT URL from the search results (after "URL: ")
+5. Each source MUST be wrapped in SOURCE_START and SOURCE_END markers
+6. Each source MUST have "title: ", "url: ", and "type: " on separate lines
+7. If rag_search returns results, you MUST list ALL of them in Sources section
 
 EXAMPLE OF CORRECT FORMAT:
 
@@ -230,9 +231,9 @@ If no relevant documents are found:
 I searched the internal knowledge base but did not find relevant information.
 
 **Sources:**
-(leave empty)
+(leave empty - no SOURCE_START/SOURCE_END blocks)
 
-After completing the response, call:
+CRITICAL: After completing the response with BOTH Answer and Sources sections, call:
 transfer_to_agent(agent_name='manager_agent')
 """
 )

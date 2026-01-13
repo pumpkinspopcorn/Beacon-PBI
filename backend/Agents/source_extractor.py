@@ -298,6 +298,21 @@ def format_sources_for_display(sources: List[Dict], citations: List[Dict]) -> Li
                 "domain": source.get("domain", ""),
                 "clickable": True
             })
+        else:
+            # Handle any other type (e.g., "Internal Document", "Collider", etc.) that has a URL
+            if source.get("url") or source.get("path"):
+                display_source = {
+                    "id": source["id"],
+                    "name": source["title"],
+                    "path": source.get("url") or source.get("path"),
+                    "type": source["type"],
+                    "clickable": True
+                }
+                if source.get("domain"):
+                    display_source["domain"] = source["domain"]
+                if source.get("chunk_data"):
+                    display_source["chunk_data"] = source["chunk_data"]
+                display_sources.append(display_source)
     
     return display_sources
 

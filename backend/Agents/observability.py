@@ -40,69 +40,54 @@ class ObservabilityTracker:
         self._requests: List[LLMRequest] = []
         self._lock = threading.Lock()
         
-        # Token pricing per model (USD per 1M tokens)
-        # Updated pricing as of 2025
-        self._pricing = {
-            # Azure OpenAI models
-            "gpt-4.1": {
-                "input": 2.50,       # $2.50 per 1M input tokens (estimated)
-                "output": 10.00      # $10.00 per 1M output tokens (estimated)
-            },
-            "gpt-4o": {
-                "input": 2.50,       # $2.50 per 1M input tokens
-                "output": 10.00      # $10.00 per 1M output tokens
-            },
-            "gpt-4o-mini": {
-                "input": 0.15,       # $0.15 per 1M input tokens
-                "output": 0.60       # $0.60 per 1M output tokens
-            },
-            "gpt-4-turbo": {
-                "input": 10.00,      # $10.00 per 1M input tokens
-                "output": 30.00      # $30.00 per 1M output tokens
-            },
-            "gpt-3.5-turbo": {
-                "input": 0.50,       # $0.50 per 1M input tokens
-                "output": 1.50       # $1.50 per 1M output tokens
-            },
-            # Azure Grok models (xAI on Azure - backup)
-            "grok-3-mini": {
-                "input": 0.30,       # Estimated pricing
-                "output": 0.50       # Estimated pricing
-            },
-            "grok-3": {
-                "input": 3.00,       # Estimated pricing
-                "output": 15.00      # Estimated pricing
-            },
-            # Gemini models
-            "gemini-1.5-flash": {
-                "input": 0.075,      # $0.075 per 1M input tokens
-                "output": 0.30       # $0.30 per 1M output tokens
-            },
-            "gemini-1.5-pro": {
-                "input": 1.25,       # $1.25 per 1M input tokens
-                "output": 5.00       # $5.00 per 1M output tokens
-            },
-            "gemini-2.0-flash": {
-                "input": 0.10,       # $0.10 per 1M input tokens
-                "output": 0.40       # $0.40 per 1M output tokens
-            },
-            # Llama models (if using via other providers)
-            "llama-3.3-70b-versatile": {
-                "input": 0.59,       # $0.59 per 1M input tokens
-                "output": 0.79       # $0.79 per 1M output tokens
-            },
-            "llama-3.1-8b-instant": {
-                "input": 0.05,       # $0.05 per 1M input tokens
-                "output": 0.08       # $0.08 per 1M output tokens
-            }
-        }
+        # Dynamic pricing cache (fetched from LiteLLM or web sources)
+        # Format: {model_name: {"input": price_per_1M, "output": price_per_1M, "last_updated": timestamp}}
+        self._pricing_cache: Dict[str, Dict[str, Any]] = {}
+        self._pricing_cache_lock = threading.Lock()
+    
+    def _fetch_pricing_from_web(self, model: str) -> Optional[Dict[str, float]]:
+        """
+        Fetch latest pricing from web sources as a last resort.
+        Returns: {"input": price_per_1M, "output": price_per_1M} or None
+        """
+        try:
+            import requests
+            from datetime import datetime
+            
+            # Try langcopilot.com API (they have structured pricing data)
+            model_slug = model.lower().replace("/", "-").replace("_", "-")
+            url = f"https://www.langcopilot.com/llm-pricing/openai/{model_slug}"
+            
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                # Parse the HTML for pricing (basic extraction)
+                text = response.text
+                if "per 1M input tokens" in text and "per 1M output tokens" in text:
+                    # This is a simplified parser - in production you'd want proper HTML parsing
+                    import re
+                    input_match = re.search(r'\$(\d+\.?\d*)\s*(?:/\s*)?(?:per\s*)?1M input tokens', text)
+                    output_match = re.search(r'\$(\d+\.?\d*)\s*(?:/\s*)?(?:per\s*)?1M output tokens', text)
+                    
+                    if input_match and output_match:
+                        pricing = {
+                            "input": float(input_match.group(1)),
+                            "output": float(output_match.group(1)),
+                            "last_updated": datetime.now().isoformat(),
+                            "source": "web"
+                        }
+                        print(f"[Observability] Fetched pricing from web for {model}: ${pricing['input']:.2f}/${pricing['output']:.2f} per 1M tokens")
+                        return pricing
+        except Exception as e:
+            print(f"[Observability] Failed to fetch pricing from web for {model}: {e}")
+        
+        return None
     
     def calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> tuple[float, float, float]:
         """Calculate cost for a request based on model and token usage.
-        Pricing is in USD per 1M tokens.
+        Pricing is dynamically fetched from LiteLLM's database or web sources.
         Returns: (total_cost, input_cost, output_cost)
         """
-        # First try LiteLLM's cost_per_token for accurate pricing
+        # Strategy 1: Try LiteLLM's cost_per_token (most reliable, updated with package)
         try:
             input_cost_per_token, output_cost_per_token = litellm.cost_per_token(
                 model=model, 
@@ -111,28 +96,38 @@ class ObservabilityTracker:
             )
             input_cost = input_cost_per_token
             output_cost = output_cost_per_token
-            print(f"[Observability] Using LiteLLM pricing for {model}: ${input_cost:.6f} in / ${output_cost:.6f} out")
+            print(f"[Observability] ✓ Using LiteLLM pricing for {model}: ${input_cost:.6f} in / ${output_cost:.6f} out")
             return (input_cost + output_cost, input_cost, output_cost)
         except Exception as e:
-            print(f"[Observability] LiteLLM pricing not available for {model}, using local pricing: {e}")
+            print(f"[Observability] LiteLLM pricing not available for {model}: {e}")
         
-        # Fallback to local pricing table
-        pricing = None
-        model_lower = model.lower()
+        # Strategy 2: Check cache for previously fetched pricing
+        with self._pricing_cache_lock:
+            if model in self._pricing_cache:
+                cached = self._pricing_cache[model]
+                # Use cached pricing (consider adding expiry check here if needed)
+                input_cost = (input_tokens / 1_000_000) * cached["input"]
+                output_cost = (output_tokens / 1_000_000) * cached["output"]
+                print(f"[Observability] ✓ Using cached pricing for {model}: ${input_cost:.6f} in / ${output_cost:.6f} out")
+                return (input_cost + output_cost, input_cost, output_cost)
         
-        for price_model, price_data in self._pricing.items():
-            if price_model.lower() in model_lower or model_lower in price_model.lower():
-                pricing = price_data
-                break
-        
-        if pricing is None:
-            # Default pricing for unknown models (conservative estimate)
-            input_cost = (input_tokens / 1_000_000) * 0.50   # $0.50 per 1M
-            output_cost = (output_tokens / 1_000_000) * 1.50  # $1.50 per 1M
+        # Strategy 3: Try fetching from web
+        web_pricing = self._fetch_pricing_from_web(model)
+        if web_pricing:
+            # Cache it for future use
+            with self._pricing_cache_lock:
+                self._pricing_cache[model] = web_pricing
+            
+            input_cost = (input_tokens / 1_000_000) * web_pricing["input"]
+            output_cost = (output_tokens / 1_000_000) * web_pricing["output"]
+            print(f"[Observability] ✓ Using web-fetched pricing for {model}: ${input_cost:.6f} in / ${output_cost:.6f} out")
             return (input_cost + output_cost, input_cost, output_cost)
         
-        input_cost = (input_tokens / 1_000_000) * pricing["input"]
-        output_cost = (output_tokens / 1_000_000) * pricing["output"]
+        # Strategy 4: Conservative fallback estimate (warn user)
+        print(f"[Observability] ⚠️  WARNING: No pricing data found for {model}. Using conservative estimate.")
+        print(f"[Observability] ⚠️  Please update LiteLLM package: pip install --upgrade litellm")
+        input_cost = (input_tokens / 1_000_000) * 2.00   # Conservative: GPT-4 class pricing
+        output_cost = (output_tokens / 1_000_000) * 8.00  # Conservative: GPT-4 class pricing
         return (input_cost + output_cost, input_cost, output_cost)
     
     def track_request(

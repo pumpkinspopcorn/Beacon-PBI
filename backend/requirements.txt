@@ -4,6 +4,7 @@ python-dotenv
 fastapi
 uvicorn
 httpx
+requests
 langchain
 langchain-core
 langchain-community
