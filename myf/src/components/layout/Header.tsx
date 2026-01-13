@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 import { MessageSquarePlus, Activity, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useSidebar } from "@/components/ui/sidebar";
 import { useHealth } from "@/hooks/useHealth";
+import beaconPbiLogo from "@/images/beacon_pbi_logo 1.png";
 import tetraPakLogo from "@/images/tetra_pak-logo_brandlogos.net_hnude.png";
 // Removed alert dialog for Clear History to simplify header actions
 import {
@@ -31,7 +31,6 @@ export function Header({
   showChatActions = true
 }: HeaderProps) {
   const { data: health, isLoading: healthLoading } = useHealth();
-  const { open } = useSidebar();
   const [darkMode, setDarkMode] = React.useState<boolean>(() => {
     const saved = localStorage.getItem("theme");
     return saved === "dark";
@@ -47,51 +46,37 @@ export function Header({
     localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
-  const PowerBILogo: React.FC<{ className?: string }> = ({ className }) => (
-    <svg
-      className={className}
-      viewBox="0 0 48 48"
-      role="img"
-      aria-label="Power BI"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <title>Power BI</title>
-      <g fill="#F2C811">
-        <rect x="6" y="20" width="8" height="20" rx="2" />
-        <rect x="20" y="12" width="8" height="28" rx="2" />
-        <rect x="34" y="24" width="8" height="16" rx="2" />
-      </g>
-    </svg>
-  );
-
   return (
-    <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-4 lg:px-6">
+    <header className="sticky top-0 z-50 flex h-20 items-center justify-between border-b border-border bg-card/95 backdrop-blur px-4 lg:px-6">
       <div className="flex items-center gap-3">
-        {/* Logo */}
         <motion.div
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center gap-4"
         >
-          {/* Tetra Pak Logo */}
-          <img
-            src={tetraPakLogo}
-            alt="Tetra Pak"
-            className="h-10 w-auto object-contain"
-          />
-          
-          {/* Vertical line separator */}
-          <div className="hidden sm:block h-8 w-0.5 bg-slate-300 dark:bg-slate-600" />
-          
-          {/* Power BI Logo */}
-          <PowerBILogo className="h-8 w-8" />
-          
-          {/* Text content - stacked vertically */}
+          <div className="flex items-center gap-3">
+            <img
+              src={tetraPakLogo}
+              alt="Tetra Pak"
+              className="h-10 w-auto object-contain drop-shadow-sm"
+              loading="lazy"
+            />
+            <div className="hidden sm:block h-9 w-px bg-slate-300 dark:bg-slate-600" />
+            <img
+              src={beaconPbiLogo}
+              alt="Beacon Power BI"
+              className="h-14 w-auto object-contain drop-shadow-sm sm:h-16"
+              loading="lazy"
+            />
+          </div>
+
+          <div className="hidden sm:block h-10 w-px bg-slate-200 dark:bg-slate-700" />
+
           <div className="flex flex-col">
-            <h1 className="text-base lg:text-lg font-semibold text-foreground leading-tight">
+            <h1 className="text-lg lg:text-xl font-semibold leading-tight text-[#0c2d52] dark:text-[#dbe7ff]">
               {title}
             </h1>
-            <p className="text-xs lg:text-sm text-muted-foreground leading-tight">
+            <p className="text-xs lg:text-sm leading-tight text-amber-600 dark:text-amber-400">
               {subtitle}
             </p>
           </div>
