@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, Loader2, Sun, Moon } from 'lucide-react';
 import TetraLogo from '../assets/tetra-pak-logo.png';
-import OurLogo from '../assets/ourlogo.png';
+import OurLogo from '../images/ourlogo_edited.PNG';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';

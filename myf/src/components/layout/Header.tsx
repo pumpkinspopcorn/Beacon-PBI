@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useHealth } from "@/hooks/useHealth";
 import tetraPakLogo from "@/images/tetra_pak-logo_brandlogos.net_hnude.png";
-import ourLogo from "@/images/ourlogo.png";
+import ourLogo from "@/images/ourlogo_edited.PNG";
 // Removed alert dialog for Clear History to simplify header actions
 import {
   Tooltip,
@@ -71,18 +71,8 @@ export function Header({
           <img
             src={ourLogo}
             alt="PBI Beacon"
-            className="h-14 w-auto object-contain"
+            className="h-16 w-auto object-contain"
           />
-          
-          {/* Text content - stacked vertically */}
-          <div className="flex flex-col">
-            <h1 className="text-base lg:text-lg font-semibold text-foreground leading-tight">
-              {title}
-            </h1>
-            <p className="text-xs lg:text-sm text-muted-foreground leading-tight">
-              {subtitle}
-            </p>
-          </div>
         </motion.div>
       </div>
 
