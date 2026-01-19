@@ -18,8 +18,22 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'Agents'))
 
 from team import root_agent
-from observability import get_observability_stats, reset_observability_stats, track_llm_request
+from observability import (
+    get_observability_stats, 
+    reset_observability_stats, 
+    track_llm_request,
+    TOKENS_PER_MILLION,  # Import constant for consistent usage
+    DEFAULT_RECENT_REQUESTS_LIMIT  # Import default limit constant
+)
 from source_extractor import extract_sources_and_citations, format_sources_for_display
+
+# ============================================================================
+# API CONFIGURATION CONSTANTS
+# ============================================================================
+
+# Timeout in seconds for blob storage document proxy requests
+# Longer timeout than web scraping because documents can be large
+BLOB_STORAGE_TIMEOUT_SECONDS = 30.0
 
 app = FastAPI(title="PBI Beacon API")
 
@@ -245,7 +259,8 @@ async def proxy_document(request: Request):
         
         if not storage_account_name or not storage_account_key:
             # Fallback to unauthenticated request if no credentials
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            # Use HTTP client with configured timeout for large document downloads
+            async with httpx.AsyncClient(timeout=BLOB_STORAGE_TIMEOUT_SECONDS) as client:
                 response = await client.get(blob_url, follow_redirects=True)
                 response.raise_for_status()
                 content_type = response.headers.get("content-type", "application/pdf")
@@ -302,8 +317,16 @@ async def get_observability_statistics():
         raise HTTPException(status_code=500, detail=f"Failed to get observability stats: {str(e)}")
 
 @app.get("/api/observability/recent")
-async def get_recent_requests(limit: int = 50):
-    """Get recent LLM requests."""
+async def get_recent_requests(limit: int = DEFAULT_RECENT_REQUESTS_LIMIT):
+    """
+    Get recent LLM requests.
+    
+    Args:
+        limit: Maximum number of recent requests to return (default: 50)
+    
+    Returns:
+        List of recent request objects with token usage and cost information
+    """
     try:
         stats = get_observability_stats()
         # Return array directly for frontend compatibility
@@ -322,7 +345,11 @@ async def reset_observability_statistics():
 
 @app.get("/api/observability/pricing")
 async def get_pricing_info():
-    """Get current pricing information for all tracked models."""
+    """
+    Get current pricing information for all tracked models.
+    
+    Returns pricing data from LiteLLM's database or web sources.
+    """
     try:
         from observability import observability_tracker
         
@@ -335,10 +362,12 @@ async def get_pricing_info():
             # Try to get pricing from LiteLLM
             try:
                 import litellm
+                # Get cost for 1M tokens to show the per-million rate
+                # Using TOKENS_PER_MILLION constant for consistency
                 input_cost, output_cost = litellm.cost_per_token(
                     model=model,
-                    prompt_tokens=1_000_000,
-                    completion_tokens=1_000_000
+                    prompt_tokens=TOKENS_PER_MILLION,
+                    completion_tokens=TOKENS_PER_MILLION
                 )
                 pricing_info[model] = {
                     "input_per_1M": input_cost,
@@ -346,27 +375,27 @@ async def get_pricing_info():
                     "source": "litellm"
                 }
             except Exception:
-                # Check cache
-                with observability_tracker._pricing_cache_lock:
-                    if model in observability_tracker._pricing_cache:
-                        cached = observability_tracker._pricing_cache[model]
-                        pricing_info[model] = {
-                            "input_per_1M": cached["input"],
-                            "output_per_1M": cached["output"],
-                            "source": cached.get("source", "cache"),
-                            "last_updated": cached.get("last_updated", "unknown")
-                        }
-                    else:
-                        pricing_info[model] = {
-                            "input_per_1M": 2.00,
-                            "output_per_1M": 8.00,
-                            "source": "fallback_estimate",
-                            "warning": "No pricing data available. Using conservative estimate."
-                        }
+                # Try fetching from web
+                web_pricing = observability_tracker._fetch_pricing_from_web(model)
+                if web_pricing:
+                    pricing_info[model] = {
+                        "input_per_1M": web_pricing["input_per_1m"],
+                        "output_per_1M": web_pricing["output_per_1m"],
+                        "source": web_pricing.get("source", "web"),
+                        "last_updated": web_pricing.get("last_updated", "unknown")
+                    }
+                else:
+                    # No pricing found for this model
+                    pricing_info[model] = {
+                        "input_per_1M": None,
+                        "output_per_1M": None,
+                        "source": "unavailable",
+                        "error": f"No pricing data available for {model}. Please update LiteLLM or verify model name."
+                    }
         
         return {
             "pricing": pricing_info,
-            "note": "Pricing is fetched dynamically from LiteLLM's database. Update with: pip install --upgrade litellm"
+            "note": "Pricing is fetched dynamically from LiteLLM's database or web sources. Update with: pip install --upgrade litellm"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get pricing info: {str(e)}")

@@ -12,6 +12,25 @@ from dataclasses import dataclass, asdict
 from collections import defaultdict
 import threading
 
+# ============================================================================
+# GLOBAL CONSTANTS - Configuration values for observability tracking
+# ============================================================================
+
+# Token calculation constant
+# LLM pricing is quoted per 1 million tokens (e.g., "$5.00 per 1M tokens")
+TOKENS_PER_MILLION = 1_000_000
+
+# Web scraping configuration
+# Timeout in seconds for HTTP requests when fetching pricing from the internet
+WEB_REQUEST_TIMEOUT_SECONDS = 5
+
+# Default limits for data retrieval
+# Default number of hours to include in hourly breakdown statistics
+DEFAULT_HOURLY_BREAKDOWN_HOURS = 24
+
+# Default number of recent requests to return when querying request history
+DEFAULT_RECENT_REQUESTS_LIMIT = 50
+
 # Enable LiteLLM debug logging to see if callbacks are firing
 # litellm._turn_on_debug()
 
@@ -37,98 +56,185 @@ class ObservabilityTracker:
     """Thread-safe observability tracker for LLM usage statistics."""
     
     def __init__(self):
-        self._requests: List[LLMRequest] = []
-        self._lock = threading.Lock()
+        """
+        Initialize the observability tracker.
         
-        # Dynamic pricing cache (fetched from LiteLLM or web sources)
-        # Format: {model_name: {"input": price_per_1M, "output": price_per_1M, "last_updated": timestamp}}
-        self._pricing_cache: Dict[str, Dict[str, Any]] = {}
-        self._pricing_cache_lock = threading.Lock()
+        This tracker stores all LLM requests in memory and provides statistics.
+        All operations are thread-safe using locks.
+        """
+        # List to store all tracked LLM requests
+        self._requests: List[LLMRequest] = []
+        
+        # Lock for thread-safe access to the requests list
+        self._lock = threading.Lock()
     
     def _fetch_pricing_from_web(self, model: str) -> Optional[Dict[str, float]]:
         """
-        Fetch latest pricing from web sources as a last resort.
-        Returns: {"input": price_per_1M, "output": price_per_1M} or None
+        Fetch latest LLM pricing from the internet using web scraping.
+        
+        This is a fallback strategy when LiteLLM doesn't have the model pricing.
+        We scrape from langcopilot.com which maintains up-to-date pricing for all LLMs.
+        
+        Args:
+            model: The model name to search for (e.g., "gpt-4.1", "claude-3-opus")
+        
+        Returns:
+            dict: {"input_per_1m": price_per_1M, "output_per_1m": price_per_1M, "last_updated": timestamp, "source": "web"}
+            None: If pricing couldn't be found or scraping failed
         """
         try:
             import requests
             from datetime import datetime
             
-            # Try langcopilot.com API (they have structured pricing data)
+            # ========================================================================
+            # STEP 1: Convert model name to URL-friendly slug
+            # ========================================================================
+            # Example: "gpt-4/turbo" → "gpt-4-turbo"
+            # This matches the URL format used by langcopilot.com
             model_slug = model.lower().replace("/", "-").replace("_", "-")
-            url = f"https://www.langcopilot.com/llm-pricing/openai/{model_slug}"
             
-            response = requests.get(url, timeout=5)
+            # ========================================================================
+            # STEP 2: Build the pricing page URL
+            # ========================================================================
+            # langcopilot.com has pricing pages in format:
+            # https://www.langcopilot.com/llm-pricing/{provider}/{model-slug}
+            # We assume OpenAI provider as default (can be extended for other providers)
+            url = f"https://www.langcopilot.com/llm-pricing/openai/{model_slug}"
+            print(f"[Observability] Fetching pricing from: {url}")
+            
+            # ========================================================================
+            # STEP 3: Make HTTP request to the pricing page
+            # ========================================================================
+            # Make HTTP request with configured timeout
+            response = requests.get(url, timeout=WEB_REQUEST_TIMEOUT_SECONDS)
+            
             if response.status_code == 200:
-                # Parse the HTML for pricing (basic extraction)
+                # Successfully retrieved the page HTML
                 text = response.text
+                
+                # ====================================================================
+                # STEP 4: Parse HTML to extract pricing information
+                # ====================================================================
+                # Look for text patterns like:
+                # "$5.00 per 1M input tokens"
+                # "$15.00 per 1M output tokens"
                 if "per 1M input tokens" in text and "per 1M output tokens" in text:
-                    # This is a simplified parser - in production you'd want proper HTML parsing
                     import re
+                    
+                    # Regex pattern to match pricing:
+                    # \$          - Literal dollar sign
+                    # (\d+\.?\d*) - Capture group: digits with optional decimal (e.g., "5", "5.00", "0.50")
+                    # \s*         - Optional whitespace
+                    # (?:/\s*)?   - Optional "/" with whitespace
+                    # (?:per\s*)? - Optional "per " (non-capturing)
+                    # 1M input tokens - Literal text we're looking for
                     input_match = re.search(r'\$(\d+\.?\d*)\s*(?:/\s*)?(?:per\s*)?1M input tokens', text)
                     output_match = re.search(r'\$(\d+\.?\d*)\s*(?:/\s*)?(?:per\s*)?1M output tokens', text)
                     
                     if input_match and output_match:
+                        # ============================================================
+                        # STEP 5: Extract the numeric values and create pricing dict
+                        # ============================================================
+                        # .group(1) gets the captured number from the regex
                         pricing = {
-                            "input": float(input_match.group(1)),
-                            "output": float(output_match.group(1)),
-                            "last_updated": datetime.now().isoformat(),
-                            "source": "web"
+                            "input_per_1m": float(input_match.group(1)),   # Price per 1M input tokens
+                            "output_per_1m": float(output_match.group(1)), # Price per 1M output tokens
+                            "last_updated": datetime.now().isoformat(),  # Timestamp of fetch
+                            "source": "web"  # Indicate this came from web scraping
                         }
-                        print(f"[Observability] Fetched pricing from web for {model}: ${pricing['input']:.2f}/${pricing['output']:.2f} per 1M tokens")
+                        print(f"[Observability] ✓ Fetched pricing from web for {model}: "
+                              f"${pricing['input_per_1m']:.2f}/${pricing['output_per_1m']:.2f} per 1M tokens")
                         return pricing
+                    else:
+                        print(f"[Observability] ⚠️  Could not parse pricing from page (regex didn't match)")
+                else:
+                    print(f"[Observability] ⚠️  Pricing text not found on page")
+            else:
+                print(f"[Observability] ⚠️  HTTP {response.status_code} - page not found")
+                
         except Exception as e:
-            print(f"[Observability] Failed to fetch pricing from web for {model}: {e}")
+            print(f"[Observability] ❌ Failed to fetch pricing from web for {model}: {e}")
         
+        # If we got here, web scraping failed
         return None
     
     def calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> tuple[float, float, float]:
-        """Calculate cost for a request based on model and token usage.
-        Pricing is dynamically fetched from LiteLLM's database or web sources.
-        Returns: (total_cost, input_cost, output_cost)
         """
-        # Strategy 1: Try LiteLLM's cost_per_token (most reliable, updated with package)
+        Calculate cost for a request based on model and token usage.
+        
+        STRATEGY 1: Try LiteLLM's built-in pricing database (most reliable)
+        STRATEGY 2: If Strategy 1 fails, fetch pricing from the internet
+        
+        Args:
+            model: The model name (e.g., "gpt-4.1", "gpt-3.5-turbo")
+            input_tokens: Number of input/prompt tokens used
+            output_tokens: Number of output/completion tokens used
+        
+        Returns:
+            tuple: (total_cost, input_cost, output_cost) in USD
+        """
+        
+        # ============================================================================
+        # STRATEGY 1: LiteLLM's Built-in Pricing Database
+        # ============================================================================
+        # LiteLLM maintains an up-to-date pricing database for all major LLM providers
+        # Source: https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json
+        # This is updated regularly when you upgrade the litellm package
+        # The cost_per_token() function returns the actual cost in USD for the tokens used
         try:
+            # Call LiteLLM's cost_per_token function
+            # It takes the model name and token counts, returns actual costs (not per-million rates)
             input_cost_per_token, output_cost_per_token = litellm.cost_per_token(
-                model=model, 
-                prompt_tokens=input_tokens, 
-                completion_tokens=output_tokens
+                model=model,  # Model identifier (e.g., "gpt-4", "claude-3-opus")
+                prompt_tokens=input_tokens,  # Number of input tokens
+                completion_tokens=output_tokens  # Number of output tokens
             )
+            
+            # These are the actual costs in USD (already calculated by LiteLLM)
             input_cost = input_cost_per_token
             output_cost = output_cost_per_token
+            
             print(f"[Observability] ✓ Using LiteLLM pricing for {model}: ${input_cost:.6f} in / ${output_cost:.6f} out")
             return (input_cost + output_cost, input_cost, output_cost)
-        except Exception as e:
-            print(f"[Observability] LiteLLM pricing not available for {model}: {e}")
-        
-        # Strategy 2: Check cache for previously fetched pricing
-        with self._pricing_cache_lock:
-            if model in self._pricing_cache:
-                cached = self._pricing_cache[model]
-                # Use cached pricing (consider adding expiry check here if needed)
-                input_cost = (input_tokens / 1_000_000) * cached["input"]
-                output_cost = (output_tokens / 1_000_000) * cached["output"]
-                print(f"[Observability] ✓ Using cached pricing for {model}: ${input_cost:.6f} in / ${output_cost:.6f} out")
-                return (input_cost + output_cost, input_cost, output_cost)
-        
-        # Strategy 3: Try fetching from web
-        web_pricing = self._fetch_pricing_from_web(model)
-        if web_pricing:
-            # Cache it for future use
-            with self._pricing_cache_lock:
-                self._pricing_cache[model] = web_pricing
             
-            input_cost = (input_tokens / 1_000_000) * web_pricing["input"]
-            output_cost = (output_tokens / 1_000_000) * web_pricing["output"]
+        except Exception as e:
+            # LiteLLM doesn't have pricing for this model (new model, custom model, etc.)
+            print(f"[Observability] LiteLLM pricing not available for {model}: {e}")
+            print(f"[Observability] Attempting internet search for pricing...")
+        
+        # ============================================================================
+        # STRATEGY 2: Internet Search for Pricing (Fallback)
+        # ============================================================================
+        # If LiteLLM doesn't have the model, we scrape pricing from langcopilot.com
+        # This site maintains a comprehensive database of LLM pricing across providers
+        pricing_data = self._fetch_pricing_from_web(model)
+        
+        if pricing_data:
+            # pricing_data format: {"input_per_1m": price_per_1M, "output_per_1m": price_per_1M}
+            # Example: {"input_per_1m": 5.00, "output_per_1m": 15.00} means $5 per 1M input, $15 per 1M output
+            
+            # Calculate actual cost by converting tokens to millions, then multiply by rate
+            # Formula: (tokens_used / TOKENS_PER_MILLION) * price_per_million_tokens
+            # Example: (12,000 tokens / 1,000,000) * $5.00 per 1M = 0.012 * $5.00 = $0.06
+            input_cost = (input_tokens / TOKENS_PER_MILLION) * pricing_data["input_per_1m"]
+            output_cost = (output_tokens / TOKENS_PER_MILLION) * pricing_data["output_per_1m"]
+            
             print(f"[Observability] ✓ Using web-fetched pricing for {model}: ${input_cost:.6f} in / ${output_cost:.6f} out")
             return (input_cost + output_cost, input_cost, output_cost)
         
-        # Strategy 4: Conservative fallback estimate (warn user)
-        print(f"[Observability] ⚠️  WARNING: No pricing data found for {model}. Using conservative estimate.")
-        print(f"[Observability] ⚠️  Please update LiteLLM package: pip install --upgrade litellm")
-        input_cost = (input_tokens / 1_000_000) * 2.00   # Conservative: GPT-4 class pricing
-        output_cost = (output_tokens / 1_000_000) * 8.00  # Conservative: GPT-4 class pricing
-        return (input_cost + output_cost, input_cost, output_cost)
+        # ============================================================================
+        # NO PRICING FOUND - RAISE ERROR
+        # ============================================================================
+        # If both strategies fail, raise an error instead of using a fallback
+        error_msg = (
+            f"No pricing data found for model '{model}'. "
+            f"Please either:\n"
+            f"  1. Update LiteLLM package: pip install --upgrade litellm\n"
+            f"  2. Verify the model name is correct\n"
+            f"  3. Add manual pricing for this model to the pricing database"
+        )
+        print(f"[Observability] ❌ ERROR: {error_msg}")
+        raise ValueError(error_msg)
     
     def track_request(
         self,
@@ -253,8 +359,16 @@ class ObservabilityTracker:
             
             return result
     
-    def get_hourly_breakdown(self, hours: int = 24) -> List[Dict[str, Any]]:
-        """Get hourly breakdown of requests and costs."""
+    def get_hourly_breakdown(self, hours: int = DEFAULT_HOURLY_BREAKDOWN_HOURS) -> List[Dict[str, Any]]:
+        """
+        Get hourly breakdown of requests and costs.
+        
+        Args:
+            hours: Number of hours to include in the breakdown (default: 24)
+        
+        Returns:
+            List of dicts with hourly statistics, most recent first
+        """
         with self._lock:
             now = datetime.now()
             hourly_data = []
@@ -276,8 +390,16 @@ class ObservabilityTracker:
             
             return list(reversed(hourly_data))  # Most recent first
     
-    def get_recent_requests(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get recent requests with detailed information."""
+    def get_recent_requests(self, limit: int = DEFAULT_RECENT_REQUESTS_LIMIT) -> List[Dict[str, Any]]:
+        """
+        Get recent requests with detailed information.
+        
+        Args:
+            limit: Maximum number of recent requests to return (default: 50)
+        
+        Returns:
+            List of request dictionaries, sorted by timestamp (most recent first)
+        """
         with self._lock:
             recent = sorted(self._requests, key=lambda r: r.timestamp, reverse=True)[:limit]
             return [asdict(request) for request in recent]
