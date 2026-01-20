@@ -53,7 +53,7 @@ export function useChat() {
           type: source.type === 'web' ? 'web' : 
                 source.type === 'file' ? 'file' : 
                 source.name?.endsWith('.xlsx') || source.name?.endsWith('.csv') ? 'table' :
-                source.name?.endsWith('.pdf') || source.name?.endsWith('.doc') ? 'doc' : 'file',
+                source.name?.endsWith('.pdf') || source.name?.endsWith('.doc') || source.name?.endsWith('.txt') ? 'doc' : 'file',
           name: source.name || source.filename || "Unknown Source",
           path: source.path || (source as any).url, // Support both path and url fields
         })),

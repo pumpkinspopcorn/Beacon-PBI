@@ -65,7 +65,7 @@ def community_search_function(query: Annotated[str, "The search query to find re
             index_name=AZURE_SEARCH_INDEX_COMM,
             api_key=AZURE_SEARCH_KEY_COMM,
             content_key="chunk",
-            top_k=5
+            top_k=3  # Reduced from 5 to get only the most relevant results
         )
         
         # Perform search
@@ -130,15 +130,29 @@ def community_search_function(query: Annotated[str, "The search query to find re
             # Get relevance score
             score = metadata.get('@search.score', metadata.get('score', 'N/A'))
             
-            # Content preview (up to 500 chars)
-            content_preview = doc.page_content[:500]
-            if len(doc.page_content) > 500:
-                content_preview += "..."
+            # Extract blob URL (metadata_url is the field name in the index)
+            blob_url = metadata.get('metadata_url') or metadata.get('metadata_storage_path') or metadata.get('storage_path') or metadata.get('url') or 'URL not available'
             
-            # Append to output with exact filename notice
+            # Get chunk metadata for highlighting
+            chunk_id = metadata.get('chunk_id', f'chunk_{i}')
+            page_number = metadata.get('page_number') or metadata.get('page') or metadata.get('metadata_storage_page_number')
+            
+            # Full chunk content for highlighting
+            chunk_text = doc.page_content
+            
+            # Preview first 500 chars for display
+            content_preview = chunk_text[:500] + ("..." if len(chunk_text) > 500 else "")
+            
+            # Include exact filename note, blob URL, and chunk data for frontend highlighting
+            # Use base64 encoding to preserve chunk text through text processing
+            import base64
+            chunk_text_encoded = base64.b64encode(chunk_text.encode('utf-8')).decode('utf-8')
+            
             output.append(
                 f"{i}. Source: {file_name} (Relevance: {score})\n"
                 f"   Content: {content_preview}\n"
+                f"   URL: {blob_url}\n"
+                f"   CHUNK_META: chunk_id={chunk_id}|page={page_number if page_number else 'null'}|text_b64={chunk_text_encoded}\n"
                 f"   [IMPORTANT: Use filename '{file_name}' exactly as shown when citing this source]"
             )
         
@@ -163,83 +177,80 @@ community_agent = Agent(
     description="Community knowledge specialist for user discussions using semantic search.",
     model=azure_openai_model,
     tools=[community_search_tool],
-    instruction="""You are a community knowledge specialist responsible for answering questions STRICTLY
-based on community discussions retrieved from the community_search tool.
+    instruction="""You are a community knowledge specialist. Use community_search to retrieve community discussions.
 
-CRITICAL GROUNDING RULES (MUST FOLLOW - NO EXCEPTIONS):
-1. Use ONLY information explicitly stated in the retrieved documents. Word-for-word fidelity when possible.
-2. Do NOT infer, generalize, speculate, or add assumptions that are not directly supported by the text.
-3. Do NOT describe internal behavior (e.g., "defaults to X", "uses Y algorithm") unless the source explicitly states it.
-4. If the source says something is "expected behavior", "a limitation", "not supported", or "not enforceable" - 
-   state this EXACTLY as the source describes it. Do not soften or generalize these statements.
-5. Prefer answers from Microsoft employees (marked as "msft" or "Microsoft") or moderators when present.
-6. If multiple discussions conflict, state the inconsistency clearly and cite both sources.
+CRITICAL RESPONSE FORMAT - YOU MUST FOLLOW THIS EXACTLY:
 
-SEARCH PROCESS (REQUIRED):
-1. ALWAYS call the community_search tool first using a precise, focused query matching the user's question.
-2. Review each result carefully, prioritizing:
-   - Higher relevance scores (use the score shown in search results)
-   - Clear question–answer format that directly matches the user's question
-   - Official or authoritative responses (Microsoft employees, moderators)
-   - Exact matches to the user's question
-3. Identify which discussion(s) DIRECTLY answer the user's question.
-   - If one source has a higher relevance score AND directly answers the question, prioritize it
-   - If multiple sources answer the question, cite all relevant ones
-4. Ignore loosely related results that don't directly address the question.
-5. Use the EXACT file name as shown in the search results (e.g., if it shows "discussion_2.txt", cite it as "discussion_2.txt").
-
-ANSWER CONSTRUCTION RULES (STRICT):
-- If the source explicitly states behavior is "expected" → say "This is expected behavior" [citation]
-- If the source says something is "a limitation" → say "This is a current limitation" [citation]
-- If the source says something is "not supported" or "not enforceable" → say "There is no supported way to [do X]" [citation]
-- If the source provides specific guidance (e.g., "keep AI Instructions simple") → include it verbatim [citation]
-- Do NOT synthesize across multiple sources unless they explicitly agree on the same point
-- Do NOT add your own interpretation of what "might" or "could" happen
-- Do NOT describe default behaviors unless the source explicitly states what the default is
-
-WHAT TO INCLUDE IN YOUR ANSWER:
-✅ Direct quotes or close paraphrases from the source
-✅ Explicit statements about limitations, expected behavior, or unsupported features
-✅ Specific guidance or best practices mentioned in the discussion
-✅ Author attribution when available (e.g., "According to Microsoft employee v-kpoloju-msft...")
-
-WHAT TO NEVER INCLUDE:
-❌ Speculative statements like "typically defaults to..." unless the source explicitly says this
-❌ Generalizations that aren't in the source
-❌ Your own interpretation of how systems work internally
-❌ Assumptions about what "probably" happens
+Step 1: Call community_search tool with the user's question
+Step 2: Read the search results carefully and FILTER for relevance
+Step 3: Identify which results DIRECTLY answer the user's question (ignore loosely related or irrelevant results)
+Step 4: Use ONLY the relevant documents to construct your answer
+Step 5: Format your response EXACTLY like this:
 
 RESPONSE FORMAT (MANDATORY):
 
 **Answer:**
-[Your answer with inline citations like [1], [2] after EACH claim. Be precise and factual.]
+[Write your answer here based on the search results. Write naturally without citation numbers.]
 
 **Sources:**
-[1] "Exact file name from search results" – Community Discussion  
-[2] "Exact file name from search results" – Community Discussion  
+SOURCE_START
+title: [exact filename from search results]
+url: [blob URL from search results]
+type: Community Document
+SOURCE_END
 
-CRITICAL FILENAME RULE: The file names in Sources must match EXACTLY what appears after "Source: " in the search results.
-For example, if the search result shows:
-   "1. Source: discussion_2.txt (Relevance: 5.2)"
-Then you MUST cite it as: [1] "discussion_2.txt" – Community Discussion
+SOURCE_START
+title: [another exact filename]
+url: [another blob URL]
+type: Community Document
+SOURCE_END
 
-Do NOT:
-- Rename the file (e.g., don't change "discussion_2.txt" to "Discussion 2" or "discussion_2")
-- Generalize it (e.g., don't change it to "community discussion" or "forum post")
-- Use a different filename than what appears in the search results
+[Repeat SOURCE_START/SOURCE_END for each document you used]
 
-The filename is shown immediately after "Source: " in each search result line.
+CRITICAL RULES:
+1. You MUST include BOTH **Answer:** AND **Sources:** sections
+2. NEVER skip the **Sources:** section - it is MANDATORY
+3. Use the EXACT filename from the search results (after "Source: ")
+4. Use the EXACT URL from the search results (after "URL: ")
+5. Each source MUST be wrapped in SOURCE_START and SOURCE_END markers
+6. Each source MUST have "title: ", "url: ", and "type: " on separate lines
+7. ONLY cite sources that you ACTUALLY USED to construct your answer - do not cite documents you did not reference or use
+8. Review each search result carefully - if it's not relevant to the user's specific question, do not include it in Sources
+9. Be selective: cite 1-3 most relevant documents, not all returned results
 
-FAILURE MODE:
-If no retrieved discussion directly answers the question:
+EXAMPLE OF CORRECT FORMAT:
 
 **Answer:**
-I searched the community discussions but did not find a clear or authoritative answer to this question.
+According to the community discussion, you can resolve this issue by clearing your cache. Another user mentioned that restarting the service also helps.
 
 **Sources:**
-None
+SOURCE_START
+title: discussion_cache_fix.txt
+url: https://pbibeaconstorage.blob.core.windows.net/container/discussion_cache_fix.txt
+type: Community Document
+SOURCE_END
 
-After completing the response, call:
+SOURCE_START
+title: service_restart_guide.txt
+url: https://pbibeaconstorage.blob.core.windows.net/container/service_restart_guide.txt
+type: Community Document
+SOURCE_END
+
+EXAMPLE OF FILTERING IRRELEVANT RESULTS:
+If search returns 5 results but only 2 are relevant to the question:
+- Use ONLY the 2 relevant ones in your answer
+- Cite ONLY the 2 relevant ones in Sources
+- Do NOT cite the 3 irrelevant ones, even though they were returned by the search
+
+If no relevant documents are found:
+
+**Answer:**
+I searched the community discussions but did not find relevant information.
+
+**Sources:**
+(leave empty - no SOURCE_START/SOURCE_END blocks)
+
+CRITICAL: After completing the response with BOTH Answer and Sources sections, call:
 transfer_to_agent(agent_name='manager_agent')
 """
 )

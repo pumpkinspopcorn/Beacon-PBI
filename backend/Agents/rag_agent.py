@@ -60,7 +60,7 @@ def rag_search_function(query: Annotated[str, "The search query to find relevant
             index_name=AZURE_SEARCH_INDEX,
             api_key=AZURE_SEARCH_KEY,
             content_key="chunk",
-            top_k=5
+            top_k=3  # Reduced from 5 to get only the most relevant results
         )
 
         docs = retriever.invoke(query)
@@ -126,8 +126,8 @@ def rag_search_function(query: Annotated[str, "The search query to find relevant
 
             score = metadata.get('@search.score', metadata.get('score', 'N/A'))
 
-            # Extract blob URL (metadata_storage_path) for frontend document viewing
-            blob_url = metadata.get('metadata_storage_path') or metadata.get('storage_path') or metadata.get('url') or 'URL not available'
+            # Extract blob URL (metadata_url is the field name in the index)
+            blob_url = metadata.get('metadata_url') or metadata.get('metadata_storage_path') or metadata.get('storage_path') or metadata.get('url') or 'URL not available'
 
             # Get chunk metadata for highlighting
             chunk_id = metadata.get('chunk_id', f'chunk_{i}')
@@ -177,8 +177,10 @@ rag_agent = Agent(
 CRITICAL RESPONSE FORMAT - YOU MUST FOLLOW THIS EXACTLY:
 
 Step 1: Call rag_search tool with the user's question
-Step 2: Read the search results carefully
-Step 3: Format your response EXACTLY like this:
+Step 2: Read the search results carefully and FILTER for relevance
+Step 3: Identify which results DIRECTLY answer the user's question (ignore loosely related or irrelevant results)
+Step 4: Use ONLY the relevant documents to construct your answer
+Step 5: Format your response EXACTLY like this:
 
 **Answer:**
 [Write your answer here based on the search results. Write naturally without citation numbers.]
@@ -205,7 +207,8 @@ CRITICAL RULES:
 4. Use the EXACT URL from the search results (after "URL: ")
 5. Each source MUST be wrapped in SOURCE_START and SOURCE_END markers
 6. Each source MUST have "title: ", "url: ", and "type: " on separate lines
-7. If rag_search returns results, you MUST list ALL of them in Sources section
+7. ONLY cite sources that you ACTUALLY USED to construct your answer - do not cite documents you did not reference or use
+8. If a search result is not relevant to the user's question, do not include it in Sources
 
 EXAMPLE OF CORRECT FORMAT:
 
@@ -224,6 +227,12 @@ title: dashboard_guide.pdf
 url: https://mystorage.blob.core.windows.net/container/dashboard_guide.pdf
 type: Internal Document
 SOURCE_END
+
+EXAMPLE OF FILTERING IRRELEVANT RESULTS:
+If search returns 5 results but only 2 are relevant to the question:
+- Use ONLY the 2 relevant ones in your answer
+- Cite ONLY the 2 relevant ones in Sources
+- Do NOT cite the 3 irrelevant ones, even though they were returned by the search
 
 If no relevant documents are found:
 

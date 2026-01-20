@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 import { ReferencedSource, ChunkData } from '@/types/powerbi-chat';
 import { PDFViewerWithHighlight } from './PDFViewerWithHighlight';
+import { TextViewerWithHighlight } from './TextViewerWithHighlight';
 
 interface ReferencedSourcesPanelProps {
   sources: ReferencedSource[];
@@ -297,6 +298,12 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
               <div className="w-full h-[calc(90vh-80px)]">
                 {viewingDocument.url.toLowerCase().endsWith('.pdf') ? (
                   <PDFViewerWithHighlight
+                    url={viewingDocument.url}
+                    chunks={viewingDocument.chunks}
+                    title={viewingDocument.name}
+                  />
+                ) : viewingDocument.url.toLowerCase().endsWith('.txt') ? (
+                  <TextViewerWithHighlight
                     url={viewingDocument.url}
                     chunks={viewingDocument.chunks}
                     title={viewingDocument.name}

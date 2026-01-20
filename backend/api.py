@@ -263,7 +263,16 @@ async def proxy_document(request: Request):
             async with httpx.AsyncClient(timeout=BLOB_STORAGE_TIMEOUT_SECONDS) as client:
                 response = await client.get(blob_url, follow_redirects=True)
                 response.raise_for_status()
-                content_type = response.headers.get("content-type", "application/pdf")
+                
+                # Detect content type based on file extension
+                filename = blob_url.split("/")[-1].lower()
+                if filename.endswith('.txt'):
+                    content_type = "text/plain; charset=utf-8"
+                elif filename.endswith('.pdf'):
+                    content_type = "application/pdf"
+                else:
+                    content_type = response.headers.get("content-type", "application/octet-stream")
+                
                 return StreamingResponse(
                     iter([response.content]),
                     media_type=content_type,
@@ -290,9 +299,19 @@ async def proxy_document(request: Request):
         blob_data = blob_client.download_blob()
         content = blob_data.readall()
         
-        # Get content type
+        # Get content type from blob properties or detect from file extension
         properties = blob_client.get_blob_properties()
-        content_type = properties.content_settings.content_type or "application/pdf"
+        content_type = properties.content_settings.content_type
+        
+        # Fallback: detect content type based on file extension if not set
+        if not content_type:
+            filename = blob_name.split("/")[-1].lower()
+            if filename.endswith('.txt'):
+                content_type = "text/plain; charset=utf-8"
+            elif filename.endswith('.pdf'):
+                content_type = "application/pdf"
+            else:
+                content_type = "application/octet-stream"
         
         # Stream the file back to the client
         return StreamingResponse(
