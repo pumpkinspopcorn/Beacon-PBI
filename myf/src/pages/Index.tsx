@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Header } from "@/components/layout/Header";
 import { ChatArea } from "@/components/chat/ChatArea";
 import { MessageInput } from "@/components/chat/MessageInput";
 import { useChat } from "@/hooks/useChat";
+import "@/lib/debug-chat"; // Load debug utilities
 
 const Index = () => {
   const { messages, isTyping, isLoading, sendMessage, clearChat, newChat, isClearingChat } = useChat();

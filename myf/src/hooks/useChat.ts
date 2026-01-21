@@ -33,9 +33,44 @@ export function useChat() {
     }
   }, [isInitialized]);
 
+  // Listen for conversation changes (when user clicks on a chat in sidebar)
+  useEffect(() => {
+    const handleConversationChange = () => {
+      const currentId = getCurrentConversationId();
+      if (currentId && currentId !== conversationId) {
+        console.log("Switching to conversation:", currentId);
+        setConversationId(currentId);
+        const existing = getConversationById(currentId);
+        setMessages(existing?.messages ?? []);
+        toast.info("Loaded conversation");
+      }
+    };
+
+    // Listen to custom event (same-tab)
+    window.addEventListener("pbi-chat-change", handleConversationChange);
+    
+    // Listen to storage events (cross-tab)
+    window.addEventListener("storage", handleConversationChange);
+    
+    // Also listen to broadcast channel for cross-tab updates
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      channel = new BroadcastChannel("pbi-chat-history");
+      channel.addEventListener("message", handleConversationChange as any);
+    }
+
+    return () => {
+      window.removeEventListener("pbi-chat-change", handleConversationChange);
+      window.removeEventListener("storage", handleConversationChange);
+      if (channel) channel.close();
+    };
+  }, [conversationId]);
+
   // Persist messages to chat history on change
   useEffect(() => {
-    updateMessages(conversationId, messages);
+    if (messages.length > 0) {
+      updateMessages(conversationId, messages);
+    }
   }, [conversationId, messages]);
 
   const askMutation = useMutation({

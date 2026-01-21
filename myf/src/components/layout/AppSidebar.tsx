@@ -1,4 +1,4 @@
-import { MessageSquare, History, Settings2, LifeBuoy, PanelLeftClose, PanelLeft, Search, BarChart3 } from "lucide-react";
+import { MessageSquare, History, Settings2, LifeBuoy, PanelLeftClose, PanelLeft, Search, BarChart3, Trash2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -37,12 +37,27 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
   const location = useLocation();
   const isObservability = location.pathname.startsWith("/observability");
   const navigate = useNavigate();
-  const { conversations: history, setCurrentId } = useChatHistory();
+  const { conversations: history, setCurrentId, currentId, deleteChat } = useChatHistory();
 
   // Default recent conversations for demo
   const recentConversations: ConversationItem[] = (history.length > 0
-    ? history.map((c) => ({ id: c.id, title: c.title || "Untitled Chat", timestamp: new Date(c.updatedAt).toLocaleTimeString(), isActive: false }))
+    ? history.map((c) => ({ id: c.id, title: c.title || "Untitled Chat", timestamp: new Date(c.updatedAt).toLocaleTimeString(), isActive: c.id === currentId }))
     : [{ id: "current", title: "Current Session", timestamp: "Now", isActive: true }]);
+
+  const handleDeleteChat = (e: React.MouseEvent, convId: string) => {
+    e.stopPropagation();
+    console.log("Attempting to delete chat:", convId);
+    if (window.confirm("Are you sure you want to delete this chat?")) {
+      deleteChat(convId);
+      console.log("Chat deleted:", convId);
+      // If we deleted the current chat, create a new one
+      if (convId === currentId) {
+        const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        setCurrentId(newId);
+        navigate("/");
+      }
+    }
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -145,26 +160,40 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
             <SidebarMenu>
               {recentConversations.map((conv) => (
                 <SidebarMenuItem key={conv.id}>
+                  <div className="relative group">
                   <SidebarMenuButton
                     isActive={conv.isActive}
                     onClick={() => {
+                      console.log("Selecting conversation:", conv.id);
                       if (conv.id !== "current") {
                         setCurrentId(conv.id);
                       }
                       navigate("/");
                       onSelectConversation?.(conv.id);
                     }}
-                    className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30"
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium text-sidebar-foreground">{conv.title}</p>
-                      <p className="text-xs text-sidebar-foreground/80 flex items-center gap-1">
-                        <History className="h-3 w-3" />
-                        {conv.timestamp}
-                      </p>
-                    </div>
-                  </SidebarMenuButton>
+                      className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-medium text-sidebar-foreground">{conv.title}</p>
+                        <p className="text-xs text-sidebar-foreground/80 flex items-center gap-1">
+                          <History className="h-3 w-3" />
+                          {conv.timestamp}
+                        </p>
+                      </div>
+                    </SidebarMenuButton>
+                    {conv.id !== "current" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => handleDeleteChat(e, conv.id)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30"
+                        title="Delete chat"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -244,9 +273,13 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
                 </div>
                 <ul className="space-y-1">
                   {recentConversations.map((conv) => (
-                    <li key={conv.id}>
+                    <li key={conv.id} className="relative group">
                       <button
                         onClick={() => {
+                          if (conv.id !== "current") {
+                            setCurrentId(conv.id);
+                          }
+                          navigate("/");
                           onSelectConversation?.(conv.id);
                           setActivePanel(null);
                         }}
@@ -258,6 +291,18 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
                           <div className="text-xs text-muted-foreground">{conv.timestamp}</div>
                         </div>
                       </button>
+                      {conv.id !== "current" && (
+                        <button
+                          onClick={(e) => {
+                            handleDeleteChat(e, conv.id);
+                            setActivePanel(null);
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600 rounded-md flex items-center justify-center"
+                          title="Delete chat"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>

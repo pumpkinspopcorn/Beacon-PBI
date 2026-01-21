@@ -1,9 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { Conversation } from "@/types/powerbi-chat";
-import { getConversations, getCurrentConversationId, setCurrentConversationId, subscribe } from "@/lib/chatHistory";
+import { getConversations, getCurrentConversationId, setCurrentConversationId, deleteConversation, subscribe, cleanupConversations } from "@/lib/chatHistory";
 
 export function useChatHistory() {
-  const [conversations, setConversations] = useState<Conversation[]>(() => getConversations());
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    // Clean up any corrupted data on first load
+    cleanupConversations();
+    return getConversations();
+  });
   const [currentId, setCurrentIdState] = useState<string | null>(() => getCurrentConversationId());
 
   useEffect(() => {
@@ -19,5 +23,9 @@ export function useChatHistory() {
     setCurrentIdState(id);
   }, []);
 
-  return { conversations, currentId, setCurrentId };
+  const deleteChat = useCallback((id: string) => {
+    deleteConversation(id);
+  }, []);
+
+  return { conversations, currentId, setCurrentId, deleteChat };
 }

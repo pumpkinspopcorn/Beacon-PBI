@@ -539,15 +539,15 @@ export default function PowerBIChatPage() {
       <div className="flex-1 flex flex-col pt-20">
         {/* Header */}
         <div className="fixed top-0 left-0 right-0 z-50 h-20 border-b border-slate-200 flex items-center justify-between px-6 bg-white shadow-sm dark:bg-slate-900">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             {/* Tetra Pak Logo */}
-            <img src={TetraLogo} alt="Tetra Pak" className="h-12 w-auto object-contain" />
+            <img src={TetraLogo} alt="Tetra Pak" className="h-7 w-auto object-contain" />
             
             {/* Vertical line separator */}
             <div className="h-12 w-0.5 bg-slate-300 dark:bg-slate-600" />
             
-            {/* Our Logo - Same size as Tetra Pak logo */}
-            <img src={OurLogo} alt="Logo" className="h-12 w-auto object-contain" />
+            {/* Our Logo - Beacon PBI */}
+            <img src={OurLogo} alt="Logo" className="h-16 w-auto object-contain" />
             
             {/* Text content - stacked vertically */}
             <div className="flex flex-col">

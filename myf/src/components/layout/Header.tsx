@@ -55,17 +55,17 @@ export function Header({
         <motion.div
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          className="flex items-center gap-4"
+          className="flex items-center gap-3"
         >
           {/* Tetra Pak Logo */}
           <img
             src={tetraPakLogo}
             alt="Tetra Pak"
-            className="h-10 w-auto object-contain"
+            className="h-7 w-auto object-contain"
           />
           
           {/* Vertical line separator */}
-          <div className="hidden sm:block h-8 w-0.5 bg-slate-300 dark:bg-slate-600" />
+          <div className="hidden sm:block h-12 w-0.5 bg-slate-300 dark:bg-slate-600" />
           
           {/* Our Logo (Beacon PBI) */}
           <img
