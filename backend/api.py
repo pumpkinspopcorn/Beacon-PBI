@@ -116,12 +116,19 @@ async def ask_question(request: QuestionRequest):
                 all_event_responses.append(event_text)
                 
                 # Extract sources from this event (could be from sub-agent)
-                if "**Sources:**" in event_text or "SOURCE_START" in event_text:
-                    print(f"[API] Event has sources, extracting...")
+                # Check for both formats: **Sources:** and SOURCE_START markers
+                has_sources_marker = "**Sources:**" in event_text or "SOURCE_START" in event_text
+                if has_sources_marker:
+                    print(f"[API] Event has sources marker, extracting...")
+                    print(f"[API] Event text preview (first 500 chars): {event_text[:500]}")
                     _, event_sources, event_citations = extract_sources_and_citations(event_text)
                     if event_sources:
                         print(f"[API] ✓ Extracted {len(event_sources)} sources from event")
+                        for src in event_sources:
+                            print(f"[API]   - Source: {src.get('title')} ({src.get('type')})")
                         all_sources.extend(event_sources)
+                    else:
+                        print(f"[API] ⚠️  No sources extracted despite marker presence")
                     if event_citations:
                         print(f"[API] ✓ Extracted {len(event_citations)} citations from event")
                         all_citations.extend(event_citations)
@@ -177,10 +184,28 @@ async def ask_question(request: QuestionRequest):
         print(f"[API] Sources collected from events: {len(all_sources)}")
         print(f"[API] Citations collected from events: {len(all_citations)}")
         
-        # Clean the final response (remove any remaining source markers)
-        cleaned_response, _, _ = extract_sources_and_citations(final_response_text)
+        # Also extract sources from the final response (manager might have included them)
+        print(f"[API] Checking final response for sources...")
+        cleaned_response, final_sources, final_citations = extract_sources_and_citations(final_response_text)
         
-        # Format the sources we collected from all events
+        # Merge sources from events and final response (avoid duplicates)
+        if final_sources:
+            print(f"[API] Found {len(final_sources)} sources in final response")
+            # Add sources from final response that aren't already in all_sources
+            existing_urls = {s.get('url') for s in all_sources if s.get('url')}
+            for src in final_sources:
+                if src.get('url') not in existing_urls:
+                    all_sources.append(src)
+                    print(f"[API] Added source from final response: {src.get('title')}")
+        
+        if final_citations:
+            print(f"[API] Found {len(final_citations)} citations in final response")
+            existing_citation_urls = {c.get('url') for c in all_citations if c.get('url')}
+            for cit in final_citations:
+                if cit.get('url') not in existing_citation_urls:
+                    all_citations.append(cit)
+        
+        # Format the sources we collected from all events and final response
         formatted_sources = format_sources_for_display(all_sources, all_citations)
         
         print(f"[API] Extraction results:")

@@ -34,21 +34,33 @@ def extract_sources_and_citations(response_text: str) -> Tuple[str, List[Dict], 
     
     # Pattern 2: Extract "Sources:" sections with SOURCE_START/SOURCE_END markers (new format)
     # Format: SOURCE_START\ntitle: ...\nurl: ...\ntype: ...\nSOURCE_END
-    source_marker_pattern = r'SOURCE_START\s*\ntitle:\s*([^\n]+)\s*\nurl:\s*(https?://[^\s\n]+)\s*(?:\ntype:\s*([^\n]+))?\s*\nSOURCE_END'
+    # More flexible pattern that handles variations in whitespace, blank lines, and optional type
+    # Pattern allows for optional blank lines between fields
+    # URL pattern allows any characters except newlines (we'll clean whitespace later)
+    source_marker_pattern = r'SOURCE_START\s*\n\s*title:\s*([^\n\r]+?)\s*\n+\s*url:\s*(https?://[^\n\r]+?)\s*\n+\s*(?:type:\s*([^\n\r]+?)\s*\n+)?SOURCE_END'
     source_marker_matches = re.findall(source_marker_pattern, response_text, re.MULTILINE | re.IGNORECASE)
     
     if source_marker_matches:
+        print(f"[SourceExtractor] Found {len(source_marker_matches)} SOURCE_START blocks")
         # Remove the entire sources section from the cleaned response
         cleaned_response = re.sub(r'\*\*Sources:\*\*.*?(?=transfer_to_agent|$)', '', cleaned_response, flags=re.DOTALL | re.IGNORECASE).strip()
+        # Also remove SOURCE_START blocks from cleaned response
+        cleaned_response = re.sub(r'SOURCE_START.*?SOURCE_END', '', cleaned_response, flags=re.DOTALL | re.IGNORECASE).strip()
         
         for i, (title, url, doc_type) in enumerate(source_marker_matches, 1):
+            # Clean up URL (remove trailing whitespace/newlines)
+            url = url.strip()
+            # Handle URLs that might have been split across lines
+            url = re.sub(r'\s+', '', url)
+            
             source = {
                 "id": f"source_{i}",
                 "title": title.strip(),
-                "url": url.strip(),
-                "domain": urlparse(url).netloc,
+                "url": url,
+                "domain": urlparse(url).netloc if url.startswith('http') else "",
                 "type": doc_type.strip() if doc_type else "web"
             }
+            print(f"[SourceExtractor] Extracted source {i}: {source['title']} ({source['type']})")
             sources.append(source)
     
     # Pattern 2b: Extract "Sources:" sections with format: [1] "Title" - URL or [1] "Title" - Type (old format)
