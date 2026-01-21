@@ -270,8 +270,15 @@ async def proxy_document(request: Request):
     if not blob_url:
         raise HTTPException(status_code=400, detail="Missing 'url' query parameter")
     
+    # Decode URL if it's encoded
+    from urllib.parse import unquote
+    blob_url = unquote(blob_url)
+    
+    print(f"[DocumentProxy] Requested URL: {blob_url}")
+    
     # Validate that it's a blob storage URL (security check)
     if not blob_url.startswith("https://") or "blob.core.windows.net" not in blob_url:
+        print(f"[DocumentProxy] Invalid blob storage URL: {blob_url}")
         raise HTTPException(status_code=400, detail="Invalid blob storage URL")
     
     try:
@@ -348,7 +355,17 @@ async def proxy_document(request: Request):
             }
         )
     except Exception as e:
+        print(f"[DocumentProxy] Error proxying document: {str(e)}")
+        print(f"[DocumentProxy] URL was: {blob_url}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error proxying document: {str(e)}")
+
+# Alias endpoint for backward compatibility
+@app.get("/api/pdf-proxy")
+async def proxy_pdf(request: Request):
+    """Alias for /api/document-proxy for backward compatibility."""
+    return await proxy_document(request)
 
 
 @app.get("/api/observability/stats")

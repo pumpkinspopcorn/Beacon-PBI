@@ -39,7 +39,7 @@ export const TextViewerWithHighlight: React.FC<TextViewerWithHighlightProps> = (
         setError(null);
 
         // Use the API proxy to fetch the document
-        const proxyUrl = `/api/pdf-proxy?url=${encodeURIComponent(url)}`;
+        const proxyUrl = `/api/document-proxy?url=${encodeURIComponent(url)}`;
         const response = await fetch(proxyUrl);
 
         if (!response.ok) {
