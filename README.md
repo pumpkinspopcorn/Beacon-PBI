@@ -5,6 +5,7 @@ An intelligent Power BI assistant using Google ADK (Agent Development Kit) with 
 ## Features
 
 - **Power BI Assistant**: User-focused AI assistant that helps with Power BI questions and troubleshooting
+- **Speech-to-Text**: Voice input using OpenAI Whisper with automatic transcription and submission
 - **Internet Search**: Real-time web search using DuckDuckGo with actual URLs
 - **Semantic Search**: Hybrid search (vector + keyword + semantic) using Azure AI Search
 - **RAG Agent**: Search internal documents with relevance scoring
@@ -67,6 +68,8 @@ source venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+
+**Note for Speech-to-Text**: The OpenAI Whisper dependency includes FFmpeg binaries via `imageio-ffmpeg`, so no manual FFmpeg installation is required.
 
 4. Create a `.env` file in the project root:
 ```bash
@@ -159,8 +162,12 @@ The frontend automatically proxies API requests to the backend server.
 1. **Start both servers** (backend and frontend) as described above
 2. **Open your browser** and navigate to `http://localhost:8080`
 3. **Ask questions** in the chat interface:
-   - Click one of the quick action buttons (Error Agent, Performance Issues, etc.) to get started
-   - Or type your own question about Power BI
+   - **Type your question**: Enter text in the input box and press Enter
+   - **Use voice input**: Click the microphone icon 🎤, speak your question, and click again to stop
+     - The audio will be automatically transcribed using OpenAI Whisper (CPU-optimized)
+     - Transcribed text appears in the input box and submits automatically
+     - A spinner shows "Transcribing..." during processing (~10 seconds)
+   - **Quick actions**: Click one of the quick action buttons to get started
    - The assistant will automatically route your question to the appropriate agent:
      - Latest Power BI updates, news → Internet Agent (with web URLs)
      - Internal documentation questions → RAG Agent (with file citations)
@@ -168,6 +175,17 @@ The frontend automatically proxies API requests to the backend server.
      - Simple questions → Answered directly by the assistant
 
 ## Key Features
+
+### Speech-to-Text with OpenAI Whisper
+- **Voice Input**: Click the mic icon to record your question
+- **CPU-Optimized**: Uses the `small` model for accuracy with reasonable speed on CPU
+- **Automatic Transcription**: Audio is transcribed in ~10 seconds
+- **Auto-Submit**: Transcribed text automatically sends to the assistant
+- **Visual Feedback**: 
+  - Red pulsing mic icon while recording
+  - Spinner with "Transcribing..." during processing
+- **Temporary Storage**: Audio files stored in `backend/temp/` and auto-cleaned after transcription
+- **No Manual Setup**: FFmpeg binaries included via Python package
 
 ### Semantic Search
 - Uses Azure OpenAI embeddings for semantic understanding
@@ -189,10 +207,12 @@ The frontend automatically proxies API requests to the backend server.
 ## API Endpoints
 
 - `POST /api/ask` - Ask a question (returns answer with sources)
+- `POST /api/transcribe` - Transcribe audio to text using OpenAI Whisper
 - `GET /api/health` - Health check
 - `GET /api/observability/stats` - Get observability statistics
 - `GET /api/observability/recent` - Get recent requests
 - `POST /api/observability/reset` - Reset statistics
+- `GET /api/document-proxy` - Proxy for viewing documents from Azure Blob Storage
 
 ## Project Structure
 
@@ -237,6 +257,14 @@ PBI-beacon/
 - **Port 8080 already in use**: Change the port in `myf/vite.config.ts`
 - **npm install fails**: Try deleting `node_modules` and `package-lock.json`, then run `npm install` again
 
+### Speech-to-Text Issues
+
+- **Microphone not working**: Ensure your browser has microphone permissions (check browser settings)
+- **"Microphone access denied"**: Click the lock icon in your browser's address bar and allow microphone access
+- **Transcription fails**: Check backend logs for FFmpeg errors; the `imageio-ffmpeg` package should automatically provide the binary
+- **Slow transcription**: The `small` model takes ~10 seconds on CPU; this is normal for accuracy
+- **Browser compatibility**: Works on Chrome, Edge, Firefox, Safari (requires HTTPS or localhost for mic access)
+
 ## Development
 
 ### Testing Agents
@@ -252,6 +280,8 @@ python -m Agents.team  # Test the full team
 
 Key Python packages:
 - `google-adk` - Google Agent Development Kit
+- `openai-whisper` - Speech-to-text transcription
+- `imageio-ffmpeg` - FFmpeg binaries for audio processing
 - `langchain-openai` - Azure OpenAI integration
 - `langchain-community` - Community tools (DuckDuckGo, Azure Search)
 - `azure-search-documents` - Azure AI Search SDK
