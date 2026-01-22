@@ -1,0 +1,31 @@
+import { useEffect, useState, useCallback } from "react";
+import { Conversation } from "@/types/powerbi-chat";
+import { getConversations, getCurrentConversationId, setCurrentConversationId, deleteConversation, subscribe, cleanupConversations } from "@/lib/chatHistory";
+
+export function useChatHistory() {
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    // Clean up any corrupted data on first load
+    cleanupConversations();
+    return getConversations();
+  });
+  const [currentId, setCurrentIdState] = useState<string | null>(() => getCurrentConversationId());
+
+  useEffect(() => {
+    const unsub = subscribe((list, id) => {
+      setConversations(list);
+      setCurrentIdState(id);
+    });
+    return unsub;
+  }, []);
+
+  const setCurrentId = useCallback((id: string) => {
+    setCurrentConversationId(id);
+    setCurrentIdState(id);
+  }, []);
+
+  const deleteChat = useCallback((id: string) => {
+    deleteConversation(id);
+  }, []);
+
+  return { conversations, currentId, setCurrentId, deleteChat };
+}
