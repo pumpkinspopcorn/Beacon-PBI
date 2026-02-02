@@ -280,40 +280,6 @@ function ObservabilityDashboard() {
                       </div>
                     </CardContent>
                   </Card>
-
-                  {/* Azure OpenAI Model Status */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Azure OpenAI Model Status</CardTitle>
-                      <CardDescription>Real-time monitoring of your deployed Azure OpenAI model</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Model Endpoint</span>
-                            <Badge variant="outline" className="text-xs">
-                              Azure OpenAI
-                            </Badge>
-                          </div>
-                          <p className="text-xs font-mono bg-muted p-2 rounded">
-                            azureesopenai.openai.azure.com
-                          </p>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Model Version</span>
-                            <Badge variant="default">
-                              GPT-4.1
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Deployed via Azure OpenAI Service
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
                 </TabsContent>
 
                 <TabsContent value="models" className="space-y-4">

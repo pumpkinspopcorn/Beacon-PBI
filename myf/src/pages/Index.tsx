@@ -24,27 +24,29 @@ const Index = () => {
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar onNewChat={newChat} />
         
-        <SidebarInset className="flex flex-col flex-1 overflow-hidden">
-          <Header 
-            onClearChat={clearChat} 
-            onNewChat={newChat}
-            isClearingChat={isClearingChat}
-          />
-          
-          <main className="flex-1 flex flex-col overflow-hidden">
-            <ChatArea 
-              messages={messages} 
-              isTyping={isTyping} 
-              onSendMessage={sendMessage}
-              onPopulateInput={handlePopulateInput}
+        <SidebarInset className="flex flex-col flex-1">
+          <div className="flex flex-col h-screen overflow-hidden">
+            <Header 
+              onClearChat={clearChat} 
+              onNewChat={newChat}
+              isClearingChat={isClearingChat}
             />
-            <MessageInput 
-              onSendMessage={sendMessage} 
-              isLoading={isLoading}
-              initialMessage={inputMessage}
-              onInitialMessageUsed={handleInitialMessageUsed}
-            />
-          </main>
+            
+            <main className="flex-1 flex flex-col overflow-hidden">
+              <ChatArea 
+                messages={messages} 
+                isTyping={isTyping} 
+                onSendMessage={sendMessage}
+                onPopulateInput={handlePopulateInput}
+              />
+              <MessageInput 
+                onSendMessage={sendMessage} 
+                isLoading={isLoading}
+                initialMessage={inputMessage}
+                onInitialMessageUsed={handleInitialMessageUsed}
+              />
+            </main>
+          </div>
         </SidebarInset>
       </div>
     </SidebarProvider>

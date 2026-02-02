@@ -1,13 +1,10 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { MessageSquarePlus, Activity, Sun, Moon } from "lucide-react";
+import { MessageSquarePlus, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useHealth } from "@/hooks/useHealth";
 import tetraPakLogo from "@/images/tetra_pak-logo_brandlogos.net_hnude.png";
 import ourLogo from "@/images/ourlogo_edited.PNG";
-// Removed alert dialog for Clear History to simplify header actions
 import {
   Tooltip,
   TooltipContent,
@@ -31,7 +28,6 @@ export function Header({
   subtitle = "Intelligent PowerBI Assistant",
   showChatActions = true
 }: HeaderProps) {
-  const { data: health, isLoading: healthLoading } = useHealth();
   const { open } = useSidebar();
   const [darkMode, setDarkMode] = React.useState<boolean>(() => {
     const saved = localStorage.getItem("theme");
@@ -49,51 +45,34 @@ export function Header({
   }, [darkMode]);
 
   return (
-    <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-4 lg:px-6">
+    <header className="sticky top-0 z-50 flex h-24 items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-4 lg:px-6">
       <div className="flex items-center gap-3">
         {/* Logo */}
         <motion.div
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          className="flex items-center gap-3"
+          className="flex items-center gap-4"
         >
           {/* Tetra Pak Logo */}
           <img
             src={tetraPakLogo}
             alt="Tetra Pak"
-            className="h-7 w-auto object-contain"
+            className="h-16 w-auto object-contain scale-125"
           />
           
-          {/* Vertical line separator */}
-          <div className="hidden sm:block h-12 w-0.5 bg-slate-300 dark:bg-slate-600" />
+          {/* Vertical line separator - Solid Blue with more spacing */}
+          <div className="hidden sm:block h-14 w-0.5 bg-blue-500 ml-2" />
           
           {/* Our Logo (Beacon PBI) */}
           <img
             src={ourLogo}
             alt="PBI Beacon"
-            className="h-16 w-auto object-contain"
+            className="h-16 w-auto object-contain scale-125"
           />
         </motion.div>
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Health Badge */}
-        {!healthLoading && health && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="hidden md:flex"
-          >
-            <Badge
-              variant={health.status === "healthy" ? "default" : "destructive"}
-              className="gap-1.5"
-            >
-              <Activity className="h-3 w-3" />
-              {health.status === "healthy" ? "Connected" : "Offline"}
-            </Badge>
-          </motion.div>
-        )}
-
         {/* Theme Toggle */}
         <Button
           variant="ghost"
@@ -122,8 +101,6 @@ export function Header({
               </TooltipTrigger>
               <TooltipContent side="bottom">New Chat</TooltipContent>
             </Tooltip>
-
-            {/* Clear History removed per request */}
           </>
         )}
       </div>

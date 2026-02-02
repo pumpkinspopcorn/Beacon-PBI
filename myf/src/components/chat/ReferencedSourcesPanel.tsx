@@ -32,7 +32,7 @@ interface ReferencedSourcesPanelProps {
 
 export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
   sources,
-  defaultExpanded = true, // Changed to true so sources are visible by default
+  defaultExpanded = false, // Collapsed by default - users can expand to view sources
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [viewingDocument, setViewingDocument] = useState<{ 
@@ -112,43 +112,7 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
            lowerUrl.includes('.xls');
   };
 
-  const handleSourceClick = (source: ReferencedSource) => {
-    // Get normalized chunks array (handles both new chunks array and legacy chunk_data)
-    const chunks = getChunksFromSource(source);
-    console.log(`[ReferencedSourcesPanel] Clicking source "${source.name}" with ${chunks.length} chunks:`, chunks);
-    
-    // If source has a path/URL
-    if (source.path) {
-      // Check if it's a document (PDF, DOC, etc.) - open in viewer
-      if (isDocumentUrl(source.path)) {
-        setViewingDocument({ 
-          url: source.path, 
-          name: source.name,
-          chunks: chunks // Pass chunks array for highlighting
-        });
-        return;
-      }
-      
-      // If it's a web link or starts with http, open in new tab
-      if (source.type === 'web' || source.path.startsWith('http')) {
-        window.open(source.path, '_blank', 'noopener,noreferrer');
-        return;
-      }
-    }
-    
-    // For file sources without URLs, try to construct blob URL if possible
-    // (This handles cases where the source might have metadata with URL)
-    if ((source.type === 'file' || source.type === 'doc') && source.metadata?.url) {
-      const docUrl = source.metadata.url;
-      if (isDocumentUrl(docUrl)) {
-        setViewingDocument({ 
-          url: docUrl, 
-          name: source.name,
-          chunks: chunks
-        });
-      }
-    }
-  };
+  // Removed document viewing functionality - sources are now display-only
 
   return (
     <motion.div
@@ -200,15 +164,15 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
             <div className="p-3 space-y-2">
               {sources.map((source, index) => {
                 const Icon = getSourceIcon(source.type);
-                // A source is clickable if:
-                // 1. It has a path that starts with http (document or web link)
-                // 2. It's a file/doc type with a path (document)
-                // 3. It's a web type with a path
-                const hasHttpUrl = source.path && source.path.startsWith('http');
-                const isDocument = hasHttpUrl && isDocumentUrl(source.path);
-                const isClickable = hasHttpUrl || 
-                                   (source.type === 'web' && source.path) ||
-                                   ((source.type === 'file' || source.type === 'doc') && source.path);
+                
+                // Extract file extension from filename or path
+                const getFileExtension = (name: string, path?: string) => {
+                  const fileName = name || path || '';
+                  const match = fileName.match(/\.([^.]+)$/);
+                  return match ? match[1].toUpperCase() : 'DOC';
+                };
+                
+                const fileExtension = getFileExtension(source.name, source.path);
                 
                 return (
                   <motion.div
@@ -216,53 +180,23 @@ export const ReferencedSourcesPanel: React.FC<ReferencedSourcesPanelProps> = ({
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className={cn(
-                      "flex items-start gap-3 p-3 rounded-md transition-colors group",
-                      isClickable 
-                        ? "hover:bg-blue-50 cursor-pointer border border-transparent hover:border-blue-200" 
-                        : "hover:bg-slate-50"
-                    )}
-                    onClick={() => handleSourceClick(source)}
+                    className="flex items-start gap-3 p-3 rounded-md hover:bg-slate-50 transition-colors"
                   >
-                    <div className={cn(
-                      "flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center",
-                      source.type === 'web' ? "bg-blue-50" : "bg-slate-50"
-                    )}>
-                      <Icon className={cn(
-                        "w-4 h-4",
-                        source.type === 'web' ? "text-blue-600" : "text-slate-600"
-                      )} />
+                    <div className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-slate-50">
+                      <Icon className="w-4 h-4 text-slate-600" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "text-sm font-medium truncate",
-                          isClickable ? "text-blue-700 group-hover:text-blue-800 underline decoration-dotted" : "text-slate-900"
-                        )}>
+                        <span className="text-sm font-medium truncate text-slate-900">
                           {source.name}
                         </span>
                         <Badge variant="outline" className="text-xs shrink-0">
-                          {getTypeLabel(source.type)}
+                          {fileExtension}
                         </Badge>
-                        {isDocument && (
-                          <div className="flex items-center gap-1 text-blue-500">
-                            <Eye className="w-3 h-3" />
-                            <span className="text-xs">View</span>
-                          </div>
-                        )}
-                        {isClickable && !isDocument && (
-                          <ExternalLink className="w-3 h-3 text-blue-500" />
-                        )}
                       </div>
                       {source.path && (
                         <div className="text-xs text-slate-500 mt-0.5 truncate">
-                          {source.type === 'web' || source.path.startsWith('http') ? (
-                            <span className="text-blue-600 hover:text-blue-800">
-                              {source.path}
-                            </span>
-                          ) : (
-                            source.path
-                          )}
+                          📁 {source.path}
                         </div>
                       )}
                     </div>

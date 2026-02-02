@@ -5,27 +5,27 @@ import { Card, CardContent } from "@/components/ui/card";
 const features = [
   {
     icon: AlertTriangle,
-    title: "Error Agent",
-    description: "Help with troubleshooting errors",
-    prompt: "Sure what do you have an issue with "
+    title: "Error Resolution",
+    description: "Help you with resolving errors",
+    prompt: "Help me resolve an error"
   },
   {
-    icon: Zap,
-    title: "Performance Issues",
-    description: "Optimize and improve performance",
-    prompt: "Sure what do you have an issue with "
+    icon: FileText,
+    title: "PowerBI Reports",
+    description: "Finding PowerBI Reports",
+    prompt: "Help me find PowerBI reports"
   },
   {
-    icon: Bug,
-    title: "Bug Investigation",
-    description: "Investigate and fix bugs",
-    prompt: "Sure what do you have an issue with "
+    icon: Table2,
+    title: "Dashboard",
+    description: "Guide you in building dashboards",
+    prompt: "Guide me in building a dashboard"
   },
   {
     icon: HelpCircle,
     title: "General Support",
     description: "Get help with any questions",
-    prompt: "Sure what do you have an issue with "
+    prompt: "I need help with something"
   },
 ];
 
@@ -52,7 +52,7 @@ export function WelcomeCard({ onSendMessage, onPopulateInput }: WelcomeCardProps
       className="max-w-2xl mx-auto"
     >
       <Card className="border-border/50 shadow-lg overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-primary via-secondary to-accent" />
+        <div className="h-1 w-full bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500" />
         <CardContent className="p-6 lg:p-8">
           <motion.div
             initial={{ opacity: 0 }}
@@ -60,10 +60,10 @@ export function WelcomeCard({ onSendMessage, onPopulateInput }: WelcomeCardProps
             transition={{ delay: 0.2 }}
           >
             <h2 className="text-2xl font-bold text-foreground mb-2">
-              👋 Hello! I'm your intelligent assistant.
+              👋 Hello! I'm PowerBi Beacon.
             </h2>
             <p className="text-muted-foreground mb-6">
-              I can help you with various technical issues and questions. Click on any option below to get started.
+              I can help you with:
             </p>
           </motion.div>
 

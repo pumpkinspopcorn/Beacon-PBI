@@ -89,7 +89,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           {/* Role label */}
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-semibold text-foreground">
-              {isUser ? 'You' : 'Power BI Assistant'}
+              {isUser ? 'You' : 'PowerBi Beacon'}
             </span>
             {isAssistant && message.metadata?.model && (
               <Badge variant="outline" className="text-xs">
@@ -105,20 +105,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           {/* Message content */}
           <div
             className={cn(
-              'prose prose-sm max-w-none px-5 py-3.5 rounded-2xl border transition-shadow',
+              'max-w-none px-5 py-3.5 rounded-2xl border transition-shadow text-[15px]',
               isUser
                 ? 'bg-chat-user text-chat-user-foreground border-border rounded-br-md shadow-lg'
-                : 'bg-chat-bot text-chat-bot-foreground border-border rounded-bl-md shadow-md',
-              'prose-headings:font-semibold',
-              'prose-a:text-primary hover:prose-a:underline',
-              'prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-code:before:content-none prose-code:after:content-none',
-              'prose-pre:bg-slate-900 prose-pre:rounded-lg prose-pre:p-0 prose-pre:my-4'
+                : 'bg-white text-[#1f2937] border-border rounded-bl-md shadow-md markdown-content'
             )}
           >
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                code({ node, className, children, ...props }: any) {
+                code({ node, className, children }: any) {
                   const match = /language-(\w+)/.exec(className || '');
                   const language = match ? match[1] : '';
                   const inline = !language;

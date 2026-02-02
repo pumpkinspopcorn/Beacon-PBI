@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Send, Loader2, Mic, Paperclip } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -89,18 +89,8 @@ export function MessageInput({ onSendMessage, isLoading, disabled, initialMessag
           setIsDragging(false);
         }}
       >
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="relative flex items-end gap-2 bg-card rounded-3xl px-3 py-2 border border-border shadow-none">
-            {/* Plus/Attachment inside left */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="flex-shrink-0 w-8 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-              aria-label="Attach"
-            >
-              <Paperclip className="w-4 h-4" />
-            </Button>
-
             {/* Textarea */}
             <Textarea
               ref={textareaRef}
@@ -110,20 +100,10 @@ export function MessageInput({ onSendMessage, isLoading, disabled, initialMessag
               placeholder="Ask something..."
               disabled={disabled || isLoading}
               rows={1}
-              className="flex-1 resize-none border-0 bg-transparent px-0 py-2 text-[15px] leading-6 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground overflow-y-auto"
+              className="flex-1 resize-none border-0 bg-transparent px-3 py-2 text-[15px] leading-6 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground overflow-y-auto"
             />
 
-            {/* Mic inside right */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="flex-shrink-0 w-8 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-              aria-label="Voice input"
-            >
-              <Mic className="w-4 h-4" />
-            </Button>
-
-            {/* Send inside right */}
+            {/* Send button */}
             <Button
               onClick={handleSubmit}
               disabled={!message.trim() || isLoading || disabled}

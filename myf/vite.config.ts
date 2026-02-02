@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import os from "os";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -24,4 +25,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   assetsInclude: ["**/*.PNG"],
+  // Use a cache directory outside OneDrive to avoid file locking issues
+  cacheDir: path.join(os.tmpdir(), "vite-cache", path.basename(__dirname)),
 }));

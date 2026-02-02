@@ -1,4 +1,4 @@
-import { MessageSquare, History, Settings2, LifeBuoy, PanelLeftClose, PanelLeft, Search, BarChart3, Trash2 } from "lucide-react";
+import { MessageSquare, History, Settings2, LifeBuoy, PanelLeftClose, PanelLeft, Search, BarChart3, Trash2, Moon, Sun } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -33,11 +33,41 @@ interface AppSidebarProps {
 
 export function AppSidebar({ conversations = [], onSelectConversation }: AppSidebarProps) {
   const { toggleSidebar, open } = useSidebar();
-  const [activePanel, setActivePanel] = React.useState<null | "search" | "history">(null);
+  const [activePanel, setActivePanel] = React.useState<null | "search" | "history" | "settings">(null);
   const location = useLocation();
   const isObservability = location.pathname.startsWith("/observability");
   const navigate = useNavigate();
-  const { conversations: history, setCurrentId, currentId, deleteChat } = useChatHistory();
+  const { conversations: history, setCurrentId, currentId, deleteChat, clearAll } = useChatHistory();
+  
+  // Theme state
+  const [darkMode, setDarkMode] = React.useState<boolean>(() => {
+    const saved = localStorage.getItem("theme");
+    return saved === "dark";
+  });
+
+  // Theme toggle handler
+  const handleThemeToggle = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    const root = document.documentElement;
+    if (newMode) {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    localStorage.setItem("theme", newMode ? "dark" : "light");
+  };
+
+  // Clear all chats handler
+  const handleClearAllChats = () => {
+    if (window.confirm("Are you sure you want to delete all chats? This cannot be undone.")) {
+      clearAll();
+      const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      setCurrentId(newId);
+      navigate("/");
+      setActivePanel(null);
+    }
+  };
 
   // Default recent conversations for demo
   const recentConversations: ConversationItem[] = (history.length > 0
@@ -110,19 +140,9 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setActivePanel(activePanel === "history" ? null : "history")}
-              className={`relative h-10 w-10 transition-all duration-200 rounded-lg ${activePanel === "history" ? "bg-white/40 backdrop-blur-sm text-sidebar-foreground" : "text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm"}`}
-              title="History"
-            >
-              <History className="h-5 w-5" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
               asChild
               className={`relative h-10 w-10 transition-all duration-200 rounded-lg ${isObservability ? "bg-white/40 backdrop-blur-sm text-sidebar-foreground" : "text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm"}`}
-              title="Analytics"
+              title="Observability"
             >
               <Link to="/observability">
                 <BarChart3 className="h-5 w-5" />
@@ -132,16 +152,8 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm hover:text-sidebar-foreground transition-all duration-200 rounded-lg"
-              title="Help"
-            >
-              <LifeBuoy className="h-5 w-5" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm hover:text-sidebar-foreground transition-all duration-200 rounded-lg"
+              onClick={() => setActivePanel(activePanel === "settings" ? null : "settings")}
+              className={`h-10 w-10 transition-all duration-200 rounded-lg ${activePanel === "settings" ? "bg-white/40 backdrop-blur-sm text-sidebar-foreground" : "text-sidebar-foreground hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30 hover:shadow-sm"}`}
               title="Settings"
             >
               <Settings2 className="h-5 w-5" />
@@ -208,12 +220,6 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30">
-                  <LifeBuoy className="h-4 w-4" />
-                  <span>Help & Tips</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
                 <SidebarMenuButton asChild className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30" isActive={isObservability}>
                   <Link to="/observability">
                     <BarChart3 className="h-4 w-4" />
@@ -222,7 +228,10 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30">
+                <SidebarMenuButton 
+                  onClick={() => setActivePanel(activePanel === "settings" ? null : "settings")}
+                  className="gap-3 px-4 py-4 pb-6 rounded-md transition-shadow hover:shadow-sm hover:bg-white/30 hover:backdrop-blur-sm hover:border hover:border-white/30"
+                >
                   <Settings2 className="h-4 w-4" />
                   <span>Settings</span>
                 </SidebarMenuButton>
@@ -248,28 +257,28 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
             tabIndex={0}
             onBlur={() => setActivePanel(null)}
             onMouseLeave={() => setActivePanel(null)}
-            className="fixed left-64 top-20 z-20 w-80 bg-card border border-border rounded-lg shadow-lg"
+            className="fixed left-64 top-20 z-20 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl"
           >
             {activePanel === "search" && (
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Search Conversations</span>
+                  <Search className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Search Conversations</span>
                 </div>
                 <input
                   type="text"
                   placeholder="Search conversations..."
-                  className="w-full h-10 px-3 rounded-md bg-muted border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200"
+                  className="w-full h-10 px-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                   autoFocus
                 />
-                <p className="text-xs text-muted-foreground mt-2">Search through your chat history</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">Search through your chat history</p>
               </div>
             )}
             {activePanel === "history" && (
               <div className="p-4 max-h-80 overflow-y-auto scrollbar-thin">
                 <div className="flex items-center gap-2 mb-3">
-                  <History className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Recent Conversations</span>
+                  <History className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Recent Conversations</span>
                 </div>
                 <ul className="space-y-1">
                   {recentConversations.map((conv) => (
@@ -283,12 +292,12 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
                           onSelectConversation?.(conv.id);
                           setActivePanel(null);
                         }}
-                        className="w-full text-left px-3 py-2 rounded-md hover:bg-muted text-sm transition-all duration-200 flex items-center gap-2"
+                        className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-all duration-200 flex items-center gap-2"
                       >
-                        <MessageSquare className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <MessageSquare className="h-3 w-3 text-gray-600 dark:text-gray-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <div className="truncate">{conv.title}</div>
-                          <div className="text-xs text-muted-foreground">{conv.timestamp}</div>
+                          <div className="truncate text-gray-900 dark:text-gray-100">{conv.title}</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">{conv.timestamp}</div>
                         </div>
                       </button>
                       {conv.id !== "current" && (
@@ -297,7 +306,7 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
                             handleDeleteChat(e, conv.id);
                             setActivePanel(null);
                           }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600 rounded-md flex items-center justify-center"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-md flex items-center justify-center"
                           title="Delete chat"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -306,6 +315,42 @@ export function AppSidebar({ conversations = [], onSelectConversation }: AppSide
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+            {activePanel === "settings" && (
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Settings2 className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Settings</span>
+                </div>
+                <div className="space-y-3">
+                  {/* Theme Toggle */}
+                  <div className="flex items-center justify-between p-3 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                    <div className="flex items-center gap-2">
+                      {darkMode ? <Moon className="h-4 w-4 text-gray-700 dark:text-gray-300" /> : <Sun className="h-4 w-4 text-gray-700 dark:text-gray-300" />}
+                      <span className="text-sm text-gray-900 dark:text-gray-100">Theme</span>
+                    </div>
+                    <button
+                      onClick={handleThemeToggle}
+                      className="px-3 py-1 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    >
+                      {darkMode ? "Light" : "Dark"}
+                    </button>
+                  </div>
+
+                  {/* Clear All Chats */}
+                  <button
+                    onClick={handleClearAllChats}
+                    className="w-full flex items-center gap-2 p-3 rounded-md bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="text-sm font-medium">Clear All Chats</span>
+                  </button>
+
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    Manage your preferences and chat data
+                  </p>
+                </div>
               </div>
             )}
           </motion.div>

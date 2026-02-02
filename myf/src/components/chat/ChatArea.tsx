@@ -28,7 +28,7 @@ export function ChatArea({ messages, isTyping, onSendMessage, onPopulateInput }:
       ref={scrollRef}
       className="flex-1 overflow-y-auto scrollbar-thin py-6"
     >
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* Welcome Card (when no messages) */}
         {messages.length === 0 && !isTyping && (
           <div className="px-4">
